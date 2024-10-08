@@ -1,23 +1,23 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { type ComponentProps } from "react";
+import { Loader2 } from "lucide-react";
+import { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 
-type Props = ComponentProps<typeof Button> & {
-  pendingText?: string;
-};
-
-export function SubmitButton({
-  children,
-  pendingText = "Submitting...",
-  ...props
-}: Props) {
+export default function SubmitButton({ children }: { children: ReactNode }) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" aria-disabled={pending} {...props}>
-      {pending ? pendingText : children}
-    </Button>
+    <button
+      type="submit"
+      disabled={pending}
+      className="flex items-center justify-center bg-white px-2 py-1 text-black"
+    >
+      {pending ? (
+        <Loader2 className="h-7 w-7 animate-spin" />
+      ) : (
+        <span>{children}</span>
+      )}
+    </button>
   );
 }

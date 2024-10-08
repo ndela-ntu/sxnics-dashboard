@@ -1,28 +1,11 @@
 "use client";
 
 import { EpisodeState, createEpisode, editEpisode } from "@/app/actions";
+import SubmitButton from "@/components/submit-button";
 import { IEpisode } from "@/models/episode";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useFormState, useFormStatus } from "react-dom";
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="flex items-center justify-center bg-white px-2 py-1 text-black"
-    >
-      {pending ? (
-        <Loader2 className="h-7 w-7 animate-spin" />
-      ) : (
-        <span>Save</span>
-      )}
-    </button>
-  );
-}
 
 export default function EditEpisodeForm({ episode }: { episode: IEpisode }) {
   const initialState = { message: null, errors: {} };
@@ -122,7 +105,7 @@ export default function EditEpisodeForm({ episode }: { episode: IEpisode }) {
         </div>
       </div> */}
 
-      <SubmitButton />
+      <SubmitButton>Save</SubmitButton>
     </form>
   );
 }

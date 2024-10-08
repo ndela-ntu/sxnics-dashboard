@@ -6,7 +6,7 @@ export default async function Layout({
   return (
     <div className="flex flex-col gap-2 items-center justify-center h-screen">
       <h1 className="text-5xl pb-5">SXNICS</h1>
-      <div>{children}</div>
+      <div className="w-full">{children}</div>
     </div>
   );
 }
