@@ -24,7 +24,7 @@ export default function EditClothingItem({ item }: { item: IShopItem }) {
           htmlFor="name"
           className="block text-sm font-medium text-white-700"
         >
-          Name Hello
+          Name 
         </label>
         <input
           type="text"

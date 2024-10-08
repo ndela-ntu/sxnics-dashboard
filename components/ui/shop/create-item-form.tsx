@@ -16,7 +16,7 @@ export default function CreateItemForm() {
       className="flex flex-col items-center justify-center space-y-2 w-full"
       action={dispatch}
     >
-      <div className="mb-4 md:w-1/2">
+      <div className="mb-4 w-full md:w-1/2">
         <label
           htmlFor="name"
           className="block text-sm font-medium text-white-700"
@@ -39,7 +39,7 @@ export default function CreateItemForm() {
             ))}
         </div>
       </div>
-      <div className="mb-4 md:w-1/2">
+      <div className="mb-4 w-full md:w-1/2">
         <label
           htmlFor="description"
           className="block text-sm font-medium text-white-700"
@@ -61,7 +61,7 @@ export default function CreateItemForm() {
             ))}
         </div>
       </div>
-      <div className="mb-4 md:w-1/2">
+      <div className="mb-4 w-full md:w-1/2">
         <label
           htmlFor="price"
           className="block text-sm font-medium text-white-700"
@@ -85,7 +85,7 @@ export default function CreateItemForm() {
             ))}
         </div>
       </div>
-      <div className="mb-4 md:w-1/2">
+      <div className="mb-4 w-full md:w-1/2">
         <label
           htmlFor="quantity"
           className="block text-sm font-medium text-white-700"
@@ -108,7 +108,7 @@ export default function CreateItemForm() {
             ))}
         </div>
       </div>
-      <div className="mb-4 md:w-1/2">
+      <div className="mb-4 w-full md:w-1/2">
         <label
           htmlFor="image"
           className="block text-sm font-medium text-white-700"
