@@ -259,7 +259,7 @@ export async function editShopItem(
       // Delete the old image if it exists
       if (imageUrl) {
         const oldImagePath = imageUrl.split("/").pop();
-        
+
         if (oldImagePath) {
           await supabase.storage
             .from("sxnics")
@@ -358,6 +358,10 @@ export async function deleteShopItem(id: number) {
 const EpisodeSchema = z.object({
   id: z.string(),
   name: z.string().min(1, { message: "Name is required" }),
+  artist: z.string().min(1, { message: "Artist is required" }),
+  description: z
+    .string()
+    .min(15, { message: "Description needs to be 15+ characters" }),
   image: z
     .instanceof(File)
     .refine((file: File) => file.size !== 0, "Image is required")
@@ -375,6 +379,8 @@ const EpisodeSchema = z.object({
 export type EpisodeState = {
   errors?: {
     name?: string[];
+    artist?: string[];
+    description?: string[];
     image?: string[];
     audio?: string[];
   };
@@ -388,12 +394,14 @@ export async function createEpisode(
 ) {
   const validatedFields = CreateEpisodeSchema.safeParse({
     name: formData.get("name"),
+    artist: formData.get("artist"),
+    description: formData.get("description"),
     image: formData.get("image"),
     audio: formData.get("audio"),
   });
 
   if (!validatedFields.success) {
-    return {
+    return <EpisodeState>{
       errors: validatedFields.error.flatten().fieldErrors,
       message: "Missed fields, failed to create item.",
     };
@@ -402,7 +410,7 @@ export async function createEpisode(
   const supabase = createClient();
 
   try {
-    const { name, image, audio } = validatedFields.data;
+    const { name, artist, description, image, audio } = validatedFields.data;
 
     // 1. Upload image to Supabase Storage
     const { data: imageData, error: imageError } = await supabase.storage
@@ -437,6 +445,8 @@ export async function createEpisode(
       .from("episodes")
       .insert({
         name,
+        artist,
+        description,
         imageUrl: publicUrl,
         audioUrl: s3Url,
       })
@@ -447,7 +457,7 @@ export async function createEpisode(
     }
   } catch (error) {
     console.error("Error in createEpisode:", error);
-    return { error };
+    return <EpisodeState>{ error: {}, message: "Error from server" };
   }
 
   revalidatePath("/dashboard/episodes");
@@ -461,6 +471,8 @@ export async function editEpisode(
 ) {
   const validatedFields = EditEpisodeSchema.safeParse({
     id: formData.get("id"),
+    artist: formData.get("artist"),
+    description: formData.get("description"),
     name: formData.get("name"),
   });
 
@@ -475,9 +487,9 @@ export async function editEpisode(
 
   const supabase = createClient();
 
-  const { id, name } = validatedFields.data;
-
   try {
+    const { id, name, artist, description } = validatedFields.data;
+
     let imageUrl = formData.get("currentImageUrl") as string;
 
     if (imageFile && imageFile.size > 0) {
@@ -512,6 +524,8 @@ export async function editEpisode(
       .from("episodes")
       .update({
         name,
+        artist,
+        description,
         imageUrl,
       })
       .eq("id", parseInt(id))
@@ -564,7 +578,6 @@ export async function deleteEpisode(id: number) {
         Bucket: bucketName,
         Key: objectKey,
       };
-
 
       const command = new DeleteObjectCommand(params);
       await s3Client.send(command);

@@ -23,12 +23,49 @@ export default function CreateEpisodeForm() {
           className="p-1.5 bg-transparent text-white border border-white w-full"
           name="name"
           type="text"
-          placeholder="Item Name"
+          placeholder="Name"
           required
         />
         <div id="name-error" aria-live="polite" aria-atomic="true">
           {state.errors?.name &&
             state.errors.name.map((error: string, i) => (
+              <p key={i} className="text-sm text-red-500">
+                {error}
+              </p>
+            ))}
+        </div>
+      </div>
+      <div className="mb-4 w-full md:w-1/2">
+        <label>Artist</label>
+        <input
+          className="p-1.5 bg-transparent text-white border border-white w-full"
+          name="artist"
+          type="text"
+          placeholder="Artist Name"
+          required
+        />
+        <div id="name-error" aria-live="polite" aria-atomic="true">
+          {state.errors?.artist &&
+            state.errors.artist.map((error: string, i) => (
+              <p key={i} className="text-sm text-red-500">
+                {error}
+              </p>
+            ))}
+        </div>
+      </div>
+      <div className="mb-4 w-full md:w-1/2">
+        <label>Description/Tracklist</label>
+        <textarea
+          name="description"
+          className="p-1.5 bg-transparent text-white border border-white w-full"
+          placeholder="Description/Tracklist"
+          rows={5}
+          minLength={15}
+          maxLength={5000}
+        ></textarea>
+        <div id="name-error" aria-live="polite" aria-atomic="true">
+          {state.errors?.description &&
+            state.errors.description.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>

@@ -24,8 +24,8 @@ export default function EpisodeCard({ episode }: { episode: IEpisode }) {
   //
 
   return (
-    <div className="flex justify-between border w-full md:p-4 items-center space-x-5">
-      <div className="w-full flex flex-row items-center space-x-2">
+    <div className="flex justify-between border w-full md:p-4 items-center space-x-5 ">
+      <div className="w-full flex flex-row items-center space-x-2 md:space-x-10">
         <div className="w-1/4 md:1/6 lg:w-1/12 aspect-square relative overflow-hidden rounded-full">
           <Image
             src={episode.imageUrl}
@@ -54,7 +54,10 @@ export default function EpisodeCard({ episode }: { episode: IEpisode }) {
           className="hidden"
           onEnded={() => setIsPlaying(false)}
         />
-        <label className="overflow-ellipsis">{episode.name}</label>
+        <div className="flex flex-col">
+        <label className="overflow-ellipsis font-bold text-lg">{episode.name}</label>
+        <label className="overflow-ellipsis text-sm">by {episode.artist}</label>
+        </div>
       </div>
       <EllipsisMenu id={episode.id} />
     </div>

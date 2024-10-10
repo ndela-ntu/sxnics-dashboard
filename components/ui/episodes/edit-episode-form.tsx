@@ -40,6 +40,45 @@ export default function EditEpisodeForm({ episode }: { episode: IEpisode }) {
             ))}
         </div>
       </div>
+      <div className="mb-4 w-full md:w-1/2">
+        <label>Artist</label>
+        <input
+          className="p-1.5 bg-transparent text-white border border-white w-full"
+          name="artist"
+          type="text"
+          placeholder="Artist Name"
+          defaultValue={episode.artist}
+          required
+        />
+        <div id="name-error" aria-live="polite" aria-atomic="true">
+          {state.errors?.artist &&
+            state.errors.artist.map((error: string, i) => (
+              <p key={i} className="text-sm text-red-500">
+                {error}
+              </p>
+            ))}
+        </div>
+      </div>
+      <div className="mb-4 w-full md:w-1/2">
+        <label>Description/Tracklist</label>
+        <textarea
+          name="description"
+          className="p-1.5 bg-transparent text-white border border-white w-full"
+          placeholder="Description/Tracklist"
+          rows={5}
+          defaultValue={episode.description}
+          minLength={15}
+          maxLength={5000}
+        ></textarea>
+        <div id="name-error" aria-live="polite" aria-atomic="true">
+          {state.errors?.description &&
+            state.errors.description.map((error: string, i) => (
+              <p key={i} className="text-sm text-red-500">
+                {error}
+              </p>
+            ))}
+        </div>
+      </div>
       <div className="mb-4 md:w-1/2">
         <label
           htmlFor="image"
