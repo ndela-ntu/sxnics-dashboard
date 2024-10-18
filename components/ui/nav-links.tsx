@@ -5,13 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IoIosMusicalNote } from "react-icons/io";
 import SignOutButton from "./sign-out-button";
+import { MdOutlineNewReleases } from "react-icons/md";
+import { GiLargePaintBrush } from "react-icons/gi";
+import { FaHome, FaHotjar } from "react-icons/fa";
 
 const links = [
-  // {
-  //   name: "Home",
-  //   href: "/dashboard",
-  //   icon: <FaHome className="" />,
-  // },
+  {
+    name: "Home",
+    href: "/dashboard",
+    icon: <FaHome />,
+  },
   // {
   //   name: "Audio Manager",
   //   href: "/dashboard/audio-manager",
@@ -22,6 +25,21 @@ const links = [
   //   href: "/dashboard/blog-manager",
   //   icon: <FaBlogger />,
   // },
+  {
+    name: "Top Picks",
+    href: "/dashboard/top-picks",
+    icon: <FaHotjar />,
+  },
+  {
+    name: "Release Radar",
+    href: "/dashboard/release-radar",
+    icon: <MdOutlineNewReleases />,
+  },
+  {
+    name: "Artists",
+    href: "/dashboard/artists",
+    icon: <GiLargePaintBrush />,
+  },
   {
     name: "Shop",
     href: "/dashboard/shop",

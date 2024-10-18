@@ -1,41 +1,34 @@
 "use client";
 
-import { EpisodeState, createEpisode, editEpisode } from "@/app/actions";
+import { TopPickState, createTopPick, editTopPick } from "@/app/actions";
 import SubmitButton from "@/components/submit-button";
-import { IArtist } from "@/models/artist";
-import { IEpisode } from "@/models/episode";
-import { Loader2 } from "lucide-react";
+import { ITopPick } from "@/models/top-pick";
+import { useFormState } from "react-dom";
 import Image from "next/image";
-import { useFormState, useFormStatus } from "react-dom";
 
-interface EditProps {
-  episode: IEpisode;
-  artists: IArtist[];
-}
-
-export default function EditEpisodeForm({ episode, artists }: EditProps) {
+export default function EditTopPickForm({ topPick }: { topPick: ITopPick }) {
   const initialState = { message: null, errors: {} };
-  const [state, dispatch] = useFormState<EpisodeState, FormData>(
-    editEpisode,
+  const [state, dispatch] = useFormState<TopPickState, FormData>(
+    editTopPick,
     initialState
   );
 
   return (
     <form
-      className="flex flex-col items-center justify-center space-y-2 w-full"
       action={dispatch}
+      className="flex flex-col items-center justify-center space-y-2 w-full"
     >
-      <input type="hidden" name="id" value={episode.id} />
-      <input type="hidden" name="currentImageUrl" value={episode.imageUrl} />
+      <input type="hidden" name="id" value={topPick.id} />
+      <input type="hidden" name="currentImageUrl" value={topPick.imageUrl} />
       <div className="mb-4 w-full md:w-1/2">
         <label>Name</label>
         <input
           className="p-1.5 bg-transparent text-white border border-white w-full"
           name="name"
           type="text"
-          defaultValue={episode.name}
-          placeholder="Item Name"
+          placeholder="Name"
           required
+          defaultValue={topPick.name}
         />
         <div id="name-error" aria-live="polite" aria-atomic="true">
           {state.errors?.name &&
@@ -48,20 +41,17 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
       </div>
       <div className="mb-4 w-full md:w-1/2">
         <label>Artist</label>
-        <select
-          defaultValue={episode.artistId}
-          name="artistId"
-          className="p-1.5 bg-transparent border border-white w-full"
-        >
-          {artists.map((artist) => (
-            <option key={artist.id} className="text-black" value={artist.id}>
-              {artist.name}
-            </option>
-          ))}
-        </select>
+        <input
+          className="p-1.5 bg-transparent text-white border border-white w-full"
+          name="artist"
+          type="text"
+          placeholder="Artist"
+          required
+          defaultValue={topPick.artist}
+        />
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.artistId &&
-            state.errors.artistId.map((error: string, i) => (
+          {state.errors?.artist &&
+            state.errors.artist.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>
@@ -69,19 +59,18 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
-        <label>Description/Tracklist</label>
-        <textarea
-          name="description"
+        <label>Purchase Link</label>
+        <input
           className="p-1.5 bg-transparent text-white border border-white w-full"
-          placeholder="Description/Tracklist"
-          rows={5}
-          defaultValue={episode.description}
-          minLength={15}
-          maxLength={5000}
-        ></textarea>
+          name="purchaseLink"
+          type="text"
+          placeholder="Purchase Link"
+          required
+          defaultValue={topPick.purchaseLink}
+        />
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.description &&
-            state.errors.description.map((error: string, i) => (
+          {state.errors?.purchaseLink &&
+            state.errors.purchaseLink.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>
@@ -91,9 +80,9 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
       <div className="mb-4 w-full md:w-1/2">
         <label>Tag</label>
         <select
-          defaultValue={episode.tag}
           className="p-1.5 bg-transparent border border-white w-full"
           name="tag"
+          defaultValue={topPick.tag}
         >
           <option className="text-black" value="Deep-House">
             Deep House
@@ -154,40 +143,13 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
         </p>
         <div className="mt-2 relative h-48 w-48">
           <Image
-            src={episode.imageUrl}
-            alt={episode.name}
+            src={topPick.imageUrl}
+            alt="Album cover"
             fill
             className="object-cover rounded-md"
           />
         </div>
       </div>
-      <p className="mt-2 text-sm italic">
-        *Audio uneditable, delete episode and re-upload to make changes
-      </p>
-      {/* <div className="mb-4 md:w-1/2">
-        <label
-          htmlFor="image"
-          className="block text-sm font-medium text-white-700"
-        >
-          Audio
-        </label>
-        <input
-          className="w-full p-1.5 bg-transparent text-white border border-white"
-          name="audio"
-          type="file"
-          accept="audio/*"
-          required
-        />
-        <div id="price-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.audio &&
-            state.errors.audio.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
-        </div>
-      </div> */}
-
       <SubmitButton>Save</SubmitButton>
     </form>
   );

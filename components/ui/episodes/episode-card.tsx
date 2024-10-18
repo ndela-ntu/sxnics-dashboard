@@ -55,8 +55,11 @@ export default function EpisodeCard({ episode }: { episode: IEpisode }) {
           onEnded={() => setIsPlaying(false)}
         />
         <div className="flex flex-col">
-        <label className="overflow-ellipsis font-bold text-lg">{episode.name}</label>
-        <label className="overflow-ellipsis text-sm">by {episode.artist}</label>
+          <label className="overflow-ellipsis text-sm md:text-base">{episode.name}</label>
+          <label className="overflow-ellipsis text-xs md:text-sm">
+            by {episode.artists.name}
+          </label>
+          <span className="bg-white text-xs md:text-sm text-black max-w-fit mt-1">{episode.tag}</span>
         </div>
       </div>
       <EllipsisMenu id={episode.id} />

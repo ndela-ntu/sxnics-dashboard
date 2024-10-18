@@ -357,8 +357,9 @@ export async function deleteShopItem(id: number) {
 
 const EpisodeSchema = z.object({
   id: z.string(),
+  tag: z.string().min(1, { message: "Tag is required" }),
   name: z.string().min(1, { message: "Name is required" }),
-  artist: z.string().min(1, { message: "Artist is required" }),
+  artistId: z.number().gt(0),
   description: z
     .string()
     .min(15, { message: "Description needs to be 15+ characters" }),
@@ -379,10 +380,11 @@ const EpisodeSchema = z.object({
 export type EpisodeState = {
   errors?: {
     name?: string[];
-    artist?: string[];
+    artistId?: string[];
     description?: string[];
     image?: string[];
     audio?: string[];
+    tag?: string[];
   };
   message?: string | null;
 };
@@ -394,10 +396,11 @@ export async function createEpisode(
 ) {
   const validatedFields = CreateEpisodeSchema.safeParse({
     name: formData.get("name"),
-    artist: formData.get("artist"),
+    artistId: parseInt(formData.get("artistId") as string),
     description: formData.get("description"),
     image: formData.get("image"),
     audio: formData.get("audio"),
+    tag: formData.get("tag"),
   });
 
   if (!validatedFields.success) {
@@ -410,7 +413,8 @@ export async function createEpisode(
   const supabase = createClient();
 
   try {
-    const { name, artist, description, image, audio } = validatedFields.data;
+    const { name, artistId, description, image, audio, tag } =
+      validatedFields.data;
 
     // 1. Upload image to Supabase Storage
     const { data: imageData, error: imageError } = await supabase.storage
@@ -445,10 +449,11 @@ export async function createEpisode(
       .from("episodes")
       .insert({
         name,
-        artist,
+        artistId,
         description,
         imageUrl: publicUrl,
         audioUrl: s3Url,
+        tag,
       })
       .select();
 
@@ -471,9 +476,10 @@ export async function editEpisode(
 ) {
   const validatedFields = EditEpisodeSchema.safeParse({
     id: formData.get("id"),
-    artist: formData.get("artist"),
+    artistId: parseInt(formData.get("artistId") as string),
     description: formData.get("description"),
     name: formData.get("name"),
+    tag: formData.get("tag"),
   });
 
   const imageFile = formData.get("image") as File | null;
@@ -488,7 +494,7 @@ export async function editEpisode(
   const supabase = createClient();
 
   try {
-    const { id, name, artist, description } = validatedFields.data;
+    const { id, name, artistId, description, tag } = validatedFields.data;
 
     let imageUrl = formData.get("currentImageUrl") as string;
 
@@ -524,9 +530,10 @@ export async function editEpisode(
       .from("episodes")
       .update({
         name,
-        artist,
+        artistId,
         description,
         imageUrl,
+        tag,
       })
       .eq("id", parseInt(id))
       .select();
@@ -597,4 +604,642 @@ export async function deleteEpisode(id: number) {
   }
 
   revalidatePath("/dashboard/episodes");
+}
+
+const ArtistSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, { message: "Name is required" }),
+  bio: z
+    .string()
+    .min(10, { message: "Bio needs to be 20 characters and greater." }),
+  image: z
+    .instanceof(File)
+    .refine((file: File) => file.size !== 0, "Image is required")
+    .refine((file: File) => {
+      return !file || file.size <= 1024 * 1024 * 5;
+    }, "File size must be less than 5MB"),
+  socialLinks: z.array(
+    z.object({ platform: z.string(), url: z.string().url() })
+  ),
+});
+
+export type ArtistState = {
+  errors?: {
+    name?: string[];
+    bio?: string[];
+    image?: string[];
+    socialLinks?: string[];
+  };
+  message?: string | null;
+};
+
+const CreateArtistSchema = ArtistSchema.omit({ socialLinks: true, id: true });
+export async function createArtist(prevState: ArtistState, formData: FormData) {
+  const validatedFields = CreateArtistSchema.safeParse({
+    name: formData.get("name"),
+    bio: formData.get("bio"),
+    image: formData.get("image"),
+  });
+
+  const socialLinksString = formData.get("socialLinks") as string;
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missed fields, failed to create item.",
+    };
+  }
+
+  const supabase = createClient();
+
+  try {
+    const { name, bio, image } = validatedFields.data;
+
+    // 1. Upload image to Supabase Storage
+    const { data: imageData, error: imageError } = await supabase.storage
+      .from("sxnics")
+      .upload(`artists/${Date.now()}-${image.name}`, image);
+
+    if (imageError) {
+      throw new Error(`Failed to upload image: ${imageError.message}`);
+    }
+
+    // Get the public URL of the uploaded image
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
+
+    const socialLinksJson = JSON.parse(socialLinksString);
+    const { data, error } = await supabase
+      .from("artists")
+      .insert({
+        name,
+        bio,
+        imageUrl: publicUrl,
+        socialLinks: socialLinksJson,
+      })
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to insert episode: ${error.message}`);
+    }
+  } catch (error) {
+    console.error("Error in createArtist:", error);
+    return <EpisodeState>{ error: {}, message: "Error from server" };
+  }
+
+  revalidatePath("/dashboard/artists");
+  redirect("/dashboard/artists");
+}
+
+const EditArtistSchema = ArtistSchema.omit({ socialLinks: true, image: true });
+export async function editArtist(prevState: ArtistState, formData: FormData) {
+  const validatedFields = EditArtistSchema.safeParse({
+    name: formData.get("name"),
+    id: formData.get("id"),
+    bio: formData.get("bio"),
+  });
+
+  const socialLinksString = formData.get("socialLinks") as string;
+  const imageFile = formData.get("image") as File | null;
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missed fields, failed to create item.",
+    };
+  }
+
+  const supabase = createClient();
+
+  try {
+    const { id, name, bio } = validatedFields.data;
+
+    let imageUrl = formData.get("currentImageUrl") as string;
+
+    if (imageFile && imageFile.size > 0) {
+      if (imageUrl) {
+        const oldImagePath = imageUrl.split("/").pop();
+        if (oldImagePath) {
+          await supabase.storage
+            .from("sxnics")
+            .remove([`artists/${oldImagePath}`]);
+        } else {
+          throw new Error("Unable to resolve oldImagePath");
+        }
+      }
+
+      const { data: imageData, error: imageError } = await supabase.storage
+        .from("sxnics")
+        .upload(`artists/${Date.now()}-${imageFile.name}`, imageFile);
+
+      if (imageError) {
+        throw new Error(`Failed to upload image: ${imageError.message}`);
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
+
+      imageUrl = publicUrl;
+    }
+
+    const socialLinksJson = JSON.parse(socialLinksString);
+    // 2. Store item details in Supabase table
+    const { data, error } = await supabase
+      .from("artists")
+      .update({
+        name,
+        bio,
+        imageUrl,
+        socialLinks: socialLinksJson,
+      })
+      .eq("id", parseInt(id))
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to insert episode: ${error.message}`);
+    }
+  } catch (error) {
+    console.error("Error in editArtist:", error);
+    return { error };
+  }
+
+  revalidatePath("/dashboard/artists");
+  redirect("/dashboard/artists");
+}
+
+export async function deleteArtist(id: number) {
+  const supabase = createClient();
+
+  try {
+    const { data: artist, error: fetchError } = await supabase
+      .from("artists")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch item: ${fetchError.message}`);
+    }
+
+    if (artist.imageUrl) {
+      const imagePath = artist.imageUrl.split("/").pop();
+      const { error: storageError } = await supabase.storage
+        .from("sxnics")
+        .remove([`artists/${imagePath}`]);
+
+      if (storageError) {
+        console.error(`Failed to delete image: ${storageError.message}`);
+        // Continue with item deletion even if image deletion fails
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from("artists")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      throw new Error(`Failed to delete item: ${deleteError.message}`);
+    }
+  } catch (error) {
+    console.error("Error in editEpisode:", error);
+    return { error };
+  }
+
+  revalidatePath("/dashboard/artists");
+}
+
+const ReleaseSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, { message: "Name is required" }),
+  artist: z.string().min(1, { message: "Name is required" }),
+  about: z
+    .string()
+    .min(20, { message: "About needs to be 20 characters and greater." }),
+  image: z
+    .instanceof(File)
+    .refine((file: File) => file.size !== 0, "Image is required")
+    .refine((file: File) => {
+      return !file || file.size <= 1024 * 1024 * 5;
+    }, "File size must be less than 5MB"),
+  purchaseLink: z.string(),
+  type: z.enum(["Vinyl", "Digital", "CD"]),
+  tag: z.string(),
+});
+
+export type ReleaseState = {
+  errors?: {
+    name?: string[];
+    artist?: string[];
+    about?: string[];
+    image?: string[];
+    purchaseLink?: string[];
+    type?: string[];
+    tag?: string[];
+  };
+  message?: string | null;
+};
+
+const CreateReleaseSchema = ReleaseSchema.omit({ id: true });
+export async function createRelease(
+  prevState: ReleaseState,
+  formData: FormData
+) {
+  const validatedFields = CreateReleaseSchema.safeParse({
+    name: formData.get("name"),
+    artist: formData.get("artist"),
+    about: formData.get("about"),
+    image: formData.get("image"),
+    purchaseLink: formData.get("purchaseLink"),
+    type: formData.get("type"),
+    tag: formData.get("tag"),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missed fields, failed to create item.",
+    };
+  }
+
+  const supabase = createClient();
+
+  try {
+    const { name, artist, about, image, purchaseLink, type, tag } =
+      validatedFields.data;
+
+    // 1. Upload image to Supabase Storage
+    const { data: imageData, error: imageError } = await supabase.storage
+      .from("sxnics")
+      .upload(`releases/${Date.now()}-${image.name}`, image);
+
+    if (imageError) {
+      throw new Error(`Failed to upload image: ${imageError.message}`);
+    }
+
+    // Get the public URL of the uploaded image
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
+
+    const { data, error } = await supabase
+      .from("releases")
+      .insert({
+        name,
+        artist,
+        about,
+        imageUrl: publicUrl,
+        purchaseLink,
+        type,
+        tag,
+      })
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to insert episode: ${error.message}`);
+    }
+  } catch (error) {
+    console.error("Error in createRelease:", error);
+    return <EpisodeState>{ error: {}, message: "Error from server" };
+  }
+
+  revalidatePath("/dashboard/release-radar");
+  redirect("/dashboard/release-radar");
+}
+
+const EditReleaseSchema = ReleaseSchema.omit({ image: true });
+export async function editRelease(prevState: ReleaseState, formData: FormData) {
+  const validatedFields = EditReleaseSchema.safeParse({
+    name: formData.get("name"),
+    id: formData.get("id"),
+    artist: formData.get("artist"),
+    about: formData.get("about"),
+    purchaseLink: formData.get("purchaseLink"),
+    type: formData.get("type"),
+    tag: formData.get("tag"),
+  });
+
+  const imageFile = formData.get("image") as File | null;
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missed fields, failed to create item.",
+    };
+  }
+
+  const supabase = createClient();
+
+  try {
+    const { id, name, artist, about, purchaseLink, type, tag } =
+      validatedFields.data;
+
+    let imageUrl = formData.get("currentImageUrl") as string;
+
+    if (imageFile && imageFile.size > 0) {
+      if (imageUrl) {
+        const oldImagePath = imageUrl.split("/").pop();
+        if (oldImagePath) {
+          await supabase.storage
+            .from("sxnics")
+            .remove([`releases/${oldImagePath}`]);
+        } else {
+          throw new Error("Unable to resolve oldImagePath");
+        }
+      }
+
+      const { data: imageData, error: imageError } = await supabase.storage
+        .from("sxnics")
+        .upload(`releases/${Date.now()}-${imageFile.name}`, imageFile);
+
+      if (imageError) {
+        throw new Error(`Failed to upload image: ${imageError.message}`);
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
+
+      imageUrl = publicUrl;
+    }
+
+    // 2. Store item details in Supabase table
+    const { data, error } = await supabase
+      .from("releases")
+      .update({
+        name,
+        artist,
+        about,
+        imageUrl,
+        purchaseLink,
+        type,
+        tag,
+      })
+      .eq("id", parseInt(id))
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to insert episode: ${error.message}`);
+    }
+  } catch (error) {
+    console.error("Error in editArtist:", error);
+    return { error };
+  }
+
+  revalidatePath("/dashboard/release-radar");
+  redirect("/dashboard/release-radar");
+}
+
+export async function deleteRelease(id: number) {
+  const supabase = createClient();
+
+  try {
+    const { data: release, error: fetchError } = await supabase
+      .from("releases")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch item: ${fetchError.message}`);
+    }
+
+    if (release.imageUrl) {
+      const imagePath = release.imageUrl.split("/").pop();
+      const { error: storageError } = await supabase.storage
+        .from("sxnics")
+        .remove([`releases/${imagePath}`]);
+
+      if (storageError) {
+        console.error(`Failed to delete image: ${storageError.message}`);
+        // Continue with item deletion even if image deletion fails
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from("releases")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      throw new Error(`Failed to delete item: ${deleteError.message}`);
+    }
+  } catch (error) {
+    console.error("Error in deleteRelease:", error);
+    return { error };
+  }
+
+  revalidatePath("/dashboard/release-radar");
+}
+
+const TopPickSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, { message: "Name is required" }),
+  artist: z.string().min(1, { message: "Name is required" }),
+  image: z
+    .instanceof(File)
+    .refine((file: File) => file.size !== 0, "Image is required")
+    .refine((file: File) => {
+      return !file || file.size <= 1024 * 1024 * 5;
+    }, "File size must be less than 5MB"),
+  purchaseLink: z.string(),
+  tag: z.string(),
+});
+
+export type TopPickState = {
+  errors?: {
+    name?: string[];
+    artist?: string[];
+    image?: string[];
+    purchaseLink?: string[];
+    tag?: string[];
+  };
+  message?: string | null;
+};
+
+const CreateTopPickSchema = TopPickSchema.omit({ id: true });
+export async function createTopPick(
+  prevState: TopPickState,
+  formData: FormData
+) {
+  const validatedFields = CreateTopPickSchema.safeParse({
+    name: formData.get("name"),
+    artist: formData.get("artist"),
+    image: formData.get("image"),
+    purchaseLink: formData.get("purchaseLink"),
+    tag: formData.get("tag"),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missed fields, failed to create item.",
+    };
+  }
+
+  const supabase = createClient();
+
+  try {
+    const { name, artist, image, purchaseLink, tag } =
+      validatedFields.data;
+
+    // 1. Upload image to Supabase Storage
+    const { data: imageData, error: imageError } = await supabase.storage
+      .from("sxnics")
+      .upload(`top_picks/${Date.now()}-${image.name}`, image);
+
+    if (imageError) {
+      throw new Error(`Failed to upload image: ${imageError.message}`);
+    }
+
+    // Get the public URL of the uploaded image
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
+
+    const { data, error } = await supabase
+      .from("top_picks")
+      .insert({
+        name,
+        artist,
+        imageUrl: publicUrl,
+        purchaseLink,
+        tag,
+      })
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to insert episode: ${error.message}`);
+    }
+  } catch (error) {
+    console.error("Error in createRelease:", error);
+    return <EpisodeState>{ error: {}, message: "Error from server" };
+  }
+
+  revalidatePath("/dashboard/top-picks");
+  redirect("/dashboard/top-picks");
+}
+
+const EditTopPickSchema = TopPickSchema.omit({image: true})
+export async function editTopPick(prevState: TopPickState, formData: FormData) {
+  const validatedFields = EditTopPickSchema.safeParse({
+    name: formData.get("name"),
+    id: formData.get("id"),
+    artist: formData.get("artist"),
+    purchaseLink: formData.get("purchaseLink"),
+    tag: formData.get("tag"),
+  });
+
+  const imageFile = formData.get("image") as File | null;
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missed fields, failed to create item.",
+    };
+  }
+
+  const supabase = createClient();
+
+  try {
+    const { id, name, artist, purchaseLink, tag } =
+      validatedFields.data;
+
+    let imageUrl = formData.get("currentImageUrl") as string;
+
+    if (imageFile && imageFile.size > 0) {
+      if (imageUrl) {
+        const oldImagePath = imageUrl.split("/").pop();
+        if (oldImagePath) {
+          await supabase.storage
+            .from("sxnics")
+            .remove([`top_picks/${oldImagePath}`]);
+        } else {
+          throw new Error("Unable to resolve oldImagePath");
+        }
+      }
+
+      const { data: imageData, error: imageError } = await supabase.storage
+        .from("sxnics")
+        .upload(`top_picks/${Date.now()}-${imageFile.name}`, imageFile);
+
+      if (imageError) {
+        throw new Error(`Failed to upload image: ${imageError.message}`);
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
+
+      imageUrl = publicUrl;
+    }
+
+    // 2. Store item details in Supabase table
+    const { data, error } = await supabase
+      .from("top_picks")
+      .update({
+        name,
+        artist,
+        imageUrl,
+        purchaseLink,
+        tag,
+      })
+      .eq("id", parseInt(id))
+      .select();
+
+    if (error) {
+      throw new Error(`Failed to insert episode: ${error.message}`);
+    }
+  } catch (error) {
+    console.error("Error in editArtist:", error);
+    return { error };
+  }
+
+  revalidatePath("/dashboard/top-picks");
+  redirect("/dashboard/top-picks");
+}
+
+
+export async function deleteTopPick(id: number) {
+  const supabase = createClient();
+
+  try {
+    const { data: topPick, error: fetchError } = await supabase
+      .from("top_picks")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch item: ${fetchError.message}`);
+    }
+
+    if (topPick.imageUrl) {
+      const imagePath = topPick.imageUrl.split("/").pop();
+      const { error: storageError } = await supabase.storage
+        .from("sxnics")
+        .remove([`top_picks/${imagePath}`]);
+
+      if (storageError) {
+        console.error(`Failed to delete image: ${storageError.message}`);
+        // Continue with item deletion even if image deletion fails
+      }
+    }
+
+    const { error: deleteError } = await supabase
+      .from("top_picks")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      throw new Error(`Failed to delete item: ${deleteError.message}`);
+    }
+  } catch (error) {
+    console.error("Error in deleteTopPick:", error);
+    return { error };
+  }
+
+  revalidatePath("/dashboard/top-picks");
 }

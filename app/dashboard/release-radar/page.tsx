@@ -1,17 +1,11 @@
-import ShopItem from "@/components/ui/shop/shop-item";
+import ReleaseCard from "@/components/ui/release-radar/release-card";
 import { createClient } from "@/utils/supabase/server";
-import Link from "next/link";
-import { MdEdit } from "react-icons/md";
+import Link from 'next/link';
 import { IoAddSharp } from "react-icons/io5";
-
-export const revalidate = 60;
 
 export default async function Page() {
   const supabase = createClient();
-  const { data: shopItems, error } = await supabase
-    .from("shop_items")
-    .select()
-    .abortSignal(AbortSignal.timeout(5000));
+  const { data: releases, error } = await supabase.from("releases").select();
 
   if (error) {
     return <div>{`An error occurred: ${error.message}`}</div>;
@@ -20,9 +14,9 @@ export default async function Page() {
   return (
     <div className="flex flex-col">
       <div className="flex justify-between">
-        <h1>Shop Items</h1>
+        <h1>Release Radar</h1>
         <Link
-          href="/dashboard/shop/create-item"
+          href="/dashboard/release-radar/create-release"
           className="p-2.5 bg-white text-black rounded-full"
         >
           <IoAddSharp />
@@ -30,9 +24,9 @@ export default async function Page() {
       </div>
       <div className="border-t border-white my-4"></div>
       <div className="gap-1 md:gap-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {shopItems.length > 0 ? (
-          shopItems.map((shopItem) => (
-            <ShopItem key={shopItem.id} item={shopItem} />
+        {releases.length > 0 ? (
+          releases.map((release) => (
+            <ReleaseCard key={release.id} release={release} />
           ))
         ) : (
           <div>No items</div>

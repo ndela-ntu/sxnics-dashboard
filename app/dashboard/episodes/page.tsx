@@ -7,10 +7,11 @@ export const revalidate = 60;
 
 export default async function Page() {
   const supabase = createClient();
-  const { data: episodes, error } = await supabase
-    .from("episodes")
-    .select()
-    .abortSignal(AbortSignal.timeout(5000));
+  const { data: episodes, error } = await supabase.from("episodes").select(
+    `*, artists (
+      id, name
+     )`
+  );
 
   if (error) {
     return <div>{`An error occurred: ${error.message}`}</div>;
@@ -28,7 +29,7 @@ export default async function Page() {
         </Link>
       </div>
       <div className="border-t border-white my-4"></div>
-      <div className="flex flex-col w-full">
+      <div className="flex flex-col w-full space-y-1 md:space-y-2">
         {episodes.map((episode) => (
           <EpisodeCard key={episode.id} episode={episode} />
         ))}

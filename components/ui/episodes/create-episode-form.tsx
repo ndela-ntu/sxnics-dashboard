@@ -2,10 +2,12 @@
 
 import { EpisodeState, createEpisode } from "@/app/actions";
 import SubmitButton from "@/components/submit-button";
+import { IArtist } from "@/models/artist";
 import { Loader2 } from "lucide-react";
 import { useFormState, useFormStatus } from "react-dom";
+import { string } from "zod";
 
-export default function CreateEpisodeForm() {
+export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
   const initialState = { message: null, errors: {} };
   const [state, dispatch] = useFormState<EpisodeState, FormData>(
     createEpisode,
@@ -37,16 +39,23 @@ export default function CreateEpisodeForm() {
       </div>
       <div className="mb-4 w-full md:w-1/2">
         <label>Artist</label>
-        <input
-          className="p-1.5 bg-transparent text-white border border-white w-full"
-          name="artist"
-          type="text"
-          placeholder="Artist Name"
-          required
-        />
+        <select
+          name="artistId"
+          className="p-1.5 bg-transparent border border-white w-full"
+        >
+          {artists.map((artist) => (
+            <option
+              key={artist.id}
+              className="text-black"
+              value={artist.id}
+            >
+              {artist.name}
+            </option>
+          ))}
+        </select>
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.artist &&
-            state.errors.artist.map((error: string, i) => (
+          {state.errors?.artistId &&
+            state.errors.artistId.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>
@@ -66,6 +75,40 @@ export default function CreateEpisodeForm() {
         <div id="name-error" aria-live="polite" aria-atomic="true">
           {state.errors?.description &&
             state.errors.description.map((error: string, i) => (
+              <p key={i} className="text-sm text-red-500">
+                {error}
+              </p>
+            ))}
+        </div>
+      </div>
+      <div className="mb-4 w-full md:w-1/2">
+        <label>Tag</label>
+        <select
+          className="p-1.5 bg-transparent border border-white w-full"
+          name="tag"
+        >
+          <option className="text-black" value="Deep-House">
+            Deep House
+          </option>
+          <option className="text-black" value="Soulful-House">
+            Soulful House
+          </option>
+          <option className="text-black" value="Lounge">
+            Lounge
+          </option>
+          <option className="text-black" value="Broken-Beats">
+            Broken Beats
+          </option>
+          <option className="text-black" value="Afro-House">
+            Afro House
+          </option>
+          <option className="text-black" value="Minimal-House">
+            Minimal House
+          </option>
+        </select>
+        <div id="name-error" aria-live="polite" aria-atomic="true">
+          {state.errors?.tag &&
+            state.errors.tag.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>

@@ -1,17 +1,15 @@
-import ShopItem from "@/components/ui/shop/shop-item";
+import ArtistCard from "@/components/ui/artists/artist-card";
 import { createClient } from "@/utils/supabase/server";
 import Link from "next/link";
-import { MdEdit } from "react-icons/md";
 import { IoAddSharp } from "react-icons/io5";
 
 export const revalidate = 60;
 
 export default async function Page() {
   const supabase = createClient();
-  const { data: shopItems, error } = await supabase
-    .from("shop_items")
-    .select()
-    .abortSignal(AbortSignal.timeout(5000));
+  const { data: artists, error } = await supabase
+    .from("artists")
+    .select();
 
   if (error) {
     return <div>{`An error occurred: ${error.message}`}</div>;
@@ -20,9 +18,9 @@ export default async function Page() {
   return (
     <div className="flex flex-col">
       <div className="flex justify-between">
-        <h1>Shop Items</h1>
+        <h1>Artists</h1>
         <Link
-          href="/dashboard/shop/create-item"
+          href="/dashboard/artists/create-artist"
           className="p-2.5 bg-white text-black rounded-full"
         >
           <IoAddSharp />
@@ -30,9 +28,9 @@ export default async function Page() {
       </div>
       <div className="border-t border-white my-4"></div>
       <div className="gap-1 md:gap-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {shopItems.length > 0 ? (
-          shopItems.map((shopItem) => (
-            <ShopItem key={shopItem.id} item={shopItem} />
+        {artists.length > 0 ? (
+          artists.map((artist) => (
+            <ArtistCard key={artist.id} artist={artist} />
           ))
         ) : (
           <div>No items</div>
