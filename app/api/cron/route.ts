@@ -1,5 +1,6 @@
+import { deleteExpiredReleases } from '@/app/actions'
 import { NextResponse } from 'next/server'
-import { deleteExpiredReleases } from '@/actions'
+
 
 export async function GET() {
   await deleteExpiredReleases()
