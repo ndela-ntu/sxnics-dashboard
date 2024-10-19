@@ -884,6 +884,9 @@ export async function createRelease(
       data: { publicUrl },
     } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
 
+    // Calculate the deletion date (7 days from now)
+    const deleteAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
     const { data, error } = await supabase
       .from("releases")
       .insert({
@@ -894,15 +897,16 @@ export async function createRelease(
         purchaseLink,
         type,
         tag,
+        deleteAt, // Add this field
       })
       .select();
 
     if (error) {
-      throw new Error(`Failed to insert episode: ${error.message}`);
+      throw new Error(`Failed to insert release: ${error.message}`);
     }
   } catch (error) {
     console.error("Error in createRelease:", error);
-    return <EpisodeState>{ error: {}, message: "Error from server" };
+    return { error: {}, message: "Error from server" };
   }
 
   revalidatePath("/dashboard/release-radar");
@@ -964,6 +968,7 @@ export async function editRelease(prevState: ReleaseState, formData: FormData) {
 
       imageUrl = publicUrl;
     }
+
 
     // 2. Store item details in Supabase table
     const { data, error } = await supabase
@@ -1032,6 +1037,51 @@ export async function deleteRelease(id: number) {
   }
 
   revalidatePath("/dashboard/release-radar");
+}
+
+export async function deleteExpiredReleases() {
+  const supabase = createClient();
+
+  try {
+    // Fetch all releases that are due for deletion
+    const { data: expiredReleases, error: fetchError } = await supabase
+      .from("releases")
+      .select("*")
+      .lte("deleteAt", new Date().toISOString());
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch expired releases: ${fetchError.message}`);
+    }
+
+    for (const release of expiredReleases) {
+      // Delete the associated image
+      if (release.imageUrl) {
+        const imagePath = release.imageUrl.split("/").pop();
+        const { error: storageError } = await supabase.storage
+          .from("sxnics")
+          .remove([`releases/${imagePath}`]);
+
+        if (storageError) {
+          console.error(`Failed to delete image for release ${release.id}: ${storageError.message}`);
+          // Continue with release deletion even if image deletion fails
+        }
+      }
+
+      // Delete the release
+      const { error: deleteError } = await supabase
+        .from("releases")
+        .delete()
+        .eq("id", release.id);
+
+      if (deleteError) {
+        console.error(`Failed to delete release ${release.id}: ${deleteError.message}`);
+      } else {
+        console.log(`Successfully deleted expired release ${release.id}`);
+      }
+    }
+  } catch (error) {
+    console.error("Error in deleteExpiredReleases:", error);
+  }
 }
 
 const TopPickSchema = z.object({
