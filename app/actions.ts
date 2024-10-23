@@ -391,7 +391,7 @@ export type EpisodeState = {
 
 const CreateEpisodeSchema = EpisodeSchema.omit({ id: true });
 export async function createEpisode(
-  prevState: ShopItemState,
+  prevState: EpisodeState,
   formData: FormData
 ) {
   const validatedFields = CreateEpisodeSchema.safeParse({
@@ -404,9 +404,9 @@ export async function createEpisode(
   });
 
   if (!validatedFields.success) {
-    return <EpisodeState>{
+    return {
       errors: validatedFields.error.flatten().fieldErrors,
-      message: "Missed fields, failed to create item.",
+      message: "Missing fields, failed to create item.",
     };
   }
 
@@ -415,6 +415,10 @@ export async function createEpisode(
   try {
     const { name, artistId, description, image, audio, tag } =
       validatedFields.data;
+
+    if (!(image instanceof File) || !(audio instanceof File)) {
+      throw new Error("Image and audio must be files");
+    }
 
     // 1. Upload image to Supabase Storage
     const { data: imageData, error: imageError } = await supabase.storage
@@ -430,20 +434,23 @@ export async function createEpisode(
       data: { publicUrl },
     } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
 
-    const fileName = `${uuidv4()}_${audio.name}`;
-
+    const fileName = `${uuidv4()}_${audio.name}`
     const uploadParams = {
-      Bucket: process.env.S3_BUCKET_NAME!,
+      Bucket: process.env.S3_BUCKET_NAME,
       Key: fileName,
       Body: Buffer.from(await audio.arrayBuffer()),
       ContentType: audio.type,
-    };
+    }
 
-    const command = new PutObjectCommand(uploadParams);
-    await s3Client.send(command);
+    if (!process.env.S3_BUCKET_NAME || !process.env.AWS_REGION) {
+      throw new Error("S3 configuration is missing")
+    }
 
-    const s3Url = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+    const command = new PutObjectCommand(uploadParams)
+    await s3Client.send(command)
 
+    const s3Url = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`
+    
     // 2. Store item details in Supabase table
     const { data, error } = await supabase
       .from("episodes")
@@ -470,10 +477,7 @@ export async function createEpisode(
 }
 
 const EditEpisodeSchema = EpisodeSchema.omit({ audio: true, image: true });
-export async function editEpisode(
-  prevState: ShopItemState,
-  formData: FormData
-) {
+export async function editEpisode(prevState: EpisodeState, formData: FormData) {
   const validatedFields = EditEpisodeSchema.safeParse({
     id: formData.get("id"),
     artistId: parseInt(formData.get("artistId") as string),
@@ -897,7 +901,7 @@ export async function createRelease(
         purchaseLink,
         type,
         tag,
-        deleteAt, 
+        deleteAt,
       })
       .select();
 
@@ -968,7 +972,6 @@ export async function editRelease(prevState: ReleaseState, formData: FormData) {
 
       imageUrl = publicUrl;
     }
-
 
     // 2. Store item details in Supabase table
     const { data, error } = await supabase
@@ -1050,7 +1053,9 @@ export async function deleteExpiredReleases() {
       .lte("deleteAt", new Date().toISOString());
 
     if (fetchError) {
-      throw new Error(`Failed to fetch expired releases: ${fetchError.message}`);
+      throw new Error(
+        `Failed to fetch expired releases: ${fetchError.message}`
+      );
     }
 
     for (const release of expiredReleases) {
@@ -1062,7 +1067,9 @@ export async function deleteExpiredReleases() {
           .remove([`releases/${imagePath}`]);
 
         if (storageError) {
-          console.error(`Failed to delete image for release ${release.id}: ${storageError.message}`);
+          console.error(
+            `Failed to delete image for release ${release.id}: ${storageError.message}`
+          );
           // Continue with release deletion even if image deletion fails
         }
       }
@@ -1074,7 +1081,9 @@ export async function deleteExpiredReleases() {
         .eq("id", release.id);
 
       if (deleteError) {
-        console.error(`Failed to delete release ${release.id}: ${deleteError.message}`);
+        console.error(
+          `Failed to delete release ${release.id}: ${deleteError.message}`
+        );
       } else {
         console.log(`Successfully deleted expired release ${release.id}`);
       }
@@ -1132,8 +1141,7 @@ export async function createTopPick(
   const supabase = createClient();
 
   try {
-    const { name, artist, image, purchaseLink, tag } =
-      validatedFields.data;
+    const { name, artist, image, purchaseLink, tag } = validatedFields.data;
 
     // 1. Upload image to Supabase Storage
     const { data: imageData, error: imageError } = await supabase.storage
@@ -1172,7 +1180,7 @@ export async function createTopPick(
   redirect("/dashboard/top-picks");
 }
 
-const EditTopPickSchema = TopPickSchema.omit({image: true})
+const EditTopPickSchema = TopPickSchema.omit({ image: true });
 export async function editTopPick(prevState: TopPickState, formData: FormData) {
   const validatedFields = EditTopPickSchema.safeParse({
     name: formData.get("name"),
@@ -1194,8 +1202,7 @@ export async function editTopPick(prevState: TopPickState, formData: FormData) {
   const supabase = createClient();
 
   try {
-    const { id, name, artist, purchaseLink, tag } =
-      validatedFields.data;
+    const { id, name, artist, purchaseLink, tag } = validatedFields.data;
 
     let imageUrl = formData.get("currentImageUrl") as string;
 
@@ -1250,7 +1257,6 @@ export async function editTopPick(prevState: TopPickState, formData: FormData) {
   revalidatePath("/dashboard/top-picks");
   redirect("/dashboard/top-picks");
 }
-
 
 export async function deleteTopPick(id: number) {
   const supabase = createClient();

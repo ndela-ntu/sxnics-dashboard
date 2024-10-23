@@ -25,11 +25,11 @@ const links = [
   //   href: "/dashboard/blog-manager",
   //   icon: <FaBlogger />,
   // },
-  {
-    name: "Top Picks",
-    href: "/dashboard/top-picks",
-    icon: <FaHotjar />,
-  },
+  // {
+  //   name: "Top Picks",
+  //   href: "/dashboard/top-picks",
+  //   icon: <FaHotjar />,
+  // },
   {
     name: "Release Radar",
     href: "/dashboard/release-radar",
