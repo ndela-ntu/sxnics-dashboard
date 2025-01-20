@@ -410,7 +410,7 @@ export async function createEpisode(
     };
   }
 
-  const supabase = createClient();
+  /*const supabase = createClient();
 
   try {
     const { name, artistId, description, image, audio, tag } =
@@ -470,7 +470,7 @@ export async function createEpisode(
   } catch (error) {
     console.error("Error in createEpisode:", error);
     return <EpisodeState>{ error: {}, message: "Error from server" };
-  }
+  } */
 
   revalidatePath("/dashboard/episodes");
   redirect("/dashboard/episodes");
