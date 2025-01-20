@@ -14,6 +14,15 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
     initialState
   );
 
+  // Helper function to safely render errors
+  const renderErrors = (fieldName: string) => {
+    return state?.errors?.[fieldName]?.map((error: string, i: number) => (
+      <p key={i} className="text-sm text-red-500">
+        {error}
+      </p>
+    ));
+  };
+
   return (
     <form
       className="flex flex-col items-center justify-center space-y-2 w-full"
@@ -29,12 +38,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           required
         />
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.name &&
-            state.errors.name.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+          {renderErrors("name")}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -44,22 +48,13 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           className="p-1.5 bg-transparent border border-white w-full"
         >
           {artists.map((artist) => (
-            <option
-              key={artist.id}
-              className="text-black"
-              value={artist.id}
-            >
+            <option key={artist.id} className="text-black" value={artist.id}>
               {artist.name}
             </option>
           ))}
         </select>
-        <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.artistId &&
-            state.errors.artistId.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+        <div id="artist-error" aria-live="polite" aria-atomic="true">
+          {renderErrors("artistId")}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -72,13 +67,8 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           minLength={15}
           maxLength={5000}
         ></textarea>
-        <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.description &&
-            state.errors.description.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+        <div id="description-error" aria-live="polite" aria-atomic="true">
+          {renderErrors("description")}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -106,13 +96,8 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
             Minimal House
           </option>
         </select>
-        <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.tag &&
-            state.errors.tag.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+        <div id="tag-error" aria-live="polite" aria-atomic="true">
+          {renderErrors("tag")}
         </div>
       </div>
       <div className="mb-4 md:w-1/2">
@@ -129,18 +114,13 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           accept="image/*"
           required
         />
-      </div>
-      <div id="price-error" aria-live="polite" aria-atomic="true">
-        {state.errors?.image &&
-          state.errors.image.map((error: string, i) => (
-            <p key={i} className="text-sm text-red-500">
-              {error}
-            </p>
-          ))}
+        <div id="image-error" aria-live="polite" aria-atomic="true">
+          {renderErrors("image")}
+        </div>
       </div>
       <div className="mb-4 md:w-1/2">
         <label
-          htmlFor="image"
+          htmlFor="audio"
           className="block text-sm font-medium text-white-700"
         >
           Audio
@@ -152,13 +132,8 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           accept="audio/*"
           required
         />
-        <div id="price-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.audio &&
-            state.errors.audio.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+        <div id="audio-error" aria-live="polite" aria-atomic="true">
+          {renderErrors("audio")}
         </div>
       </div>
       <SubmitButton>Save</SubmitButton>
