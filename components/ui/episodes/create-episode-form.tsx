@@ -7,6 +7,9 @@ import { Loader2 } from "lucide-react";
 import { useFormState, useFormStatus } from "react-dom";
 import { string } from "zod";
 
+// Define valid field names
+type FieldName = 'name' | 'artistId' | 'description' | 'tag' | 'image' | 'audio';
+
 export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
   const initialState = { message: null, errors: {} };
   const [state, dispatch] = useFormState<EpisodeState, FormData>(
@@ -14,13 +17,17 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
     initialState
   );
 
-  // Helper function to safely render errors
-  const renderErrors = (fieldName: string) => {
-    return state?.errors?.[fieldName]?.map((error: string, i: number) => (
-      <p key={i} className="text-sm text-red-500">
-        {error}
-      </p>
-    ));
+  // Helper function to safely render errors with proper typing
+  const renderErrors = (fieldName: FieldName) => {
+    if (state?.errors && fieldName in state.errors) {
+      const fieldErrors = state.errors[fieldName];
+      return fieldErrors?.map((error: string, i: number) => (
+        <p key={i} className="text-sm text-red-500">
+          {error}
+        </p>
+      ));
+    }
+    return null;
   };
 
   return (
@@ -38,7 +45,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           required
         />
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {renderErrors("name")}
+          {renderErrors('name')}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -48,13 +55,17 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           className="p-1.5 bg-transparent border border-white w-full"
         >
           {artists.map((artist) => (
-            <option key={artist.id} className="text-black" value={artist.id}>
+            <option
+              key={artist.id}
+              className="text-black"
+              value={artist.id}
+            >
               {artist.name}
             </option>
           ))}
         </select>
         <div id="artist-error" aria-live="polite" aria-atomic="true">
-          {renderErrors("artistId")}
+          {renderErrors('artistId')}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -68,7 +79,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           maxLength={5000}
         ></textarea>
         <div id="description-error" aria-live="polite" aria-atomic="true">
-          {renderErrors("description")}
+          {renderErrors('description')}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -97,7 +108,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           </option>
         </select>
         <div id="tag-error" aria-live="polite" aria-atomic="true">
-          {renderErrors("tag")}
+          {renderErrors('tag')}
         </div>
       </div>
       <div className="mb-4 md:w-1/2">
@@ -115,7 +126,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           required
         />
         <div id="image-error" aria-live="polite" aria-atomic="true">
-          {renderErrors("image")}
+          {renderErrors('image')}
         </div>
       </div>
       <div className="mb-4 md:w-1/2">
@@ -133,7 +144,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           required
         />
         <div id="audio-error" aria-live="polite" aria-atomic="true">
-          {renderErrors("audio")}
+          {renderErrors('audio')}
         </div>
       </div>
       <SubmitButton>Save</SubmitButton>
