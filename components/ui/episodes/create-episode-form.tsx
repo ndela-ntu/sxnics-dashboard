@@ -4,11 +4,28 @@ import { EpisodeState, createEpisode } from "@/app/actions";
 import SubmitButton from "@/components/submit-button";
 import { IArtist } from "@/models/artist";
 import { Loader2 } from "lucide-react";
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { string } from "zod";
+import { v4 as uuidv4 } from "uuid";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+
+const s3Client = new S3Client({
+  region: process.env.NEXT_PUBLIC_AWS_REGION!,
+  credentials: {
+    accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY!,
+  }
+});
 
 // Define valid field names
-type FieldName = 'name' | 'artistId' | 'description' | 'tag' | 'image' | 'audio';
+type FieldName =
+  | "name"
+  | "artistId"
+  | "description"
+  | "tag"
+  | "image"
+  | "audioUrl";
 
 export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
   const initialState = { message: null, errors: {} };
@@ -16,6 +33,8 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
     createEpisode,
     initialState
   );
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Helper function to safely render errors with proper typing
   const renderErrors = (fieldName: FieldName) => {
@@ -30,10 +49,84 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
     return null;
   };
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData(e.currentTarget);
+      const audio = formData.get("audio") as File;
+
+      const fileName = `${uuidv4()}_${audio.name}`
+      const uploadParams = {
+        Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME,
+        Key: fileName,
+        Body: Buffer.from(await audio.arrayBuffer()),
+        ContentType: audio.type,
+      }
+  
+      if (!process.env.NEXT_PUBLIC_S3_BUCKET_NAME || !process.env.NEXT_PUBLIC_AWS_REGION) {
+        throw new Error("S3 configuration is missing")
+      }
+      
+      const command = new PutObjectCommand(uploadParams)
+      await s3Client.send(command)
+  
+      const s3Url = `https://${process.env.NEXT_PUBLIC_S3_BUCKET_NAME}.s3.${process.env.NEXT_PUBLIC_AWS_REGION}.amazonaws.com/${fileName}`
+      
+
+      /*const response = await fetch("/api/get-upload-url", {
+        method: "POST",
+        body: JSON.stringify({
+          fileName: `${uuidv4()}_${audioFile.name}`,
+          fileType: audioFile.type,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const { uploadUrl, publicUrl } = await response.json();
+
+      const upload = fetch(uploadUrl, {
+        method: "PUT",
+        body: audioFile,
+        headers: {
+          "Content-Type": audioFile.type,
+        },
+      });*/
+
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 10, 100));
+      }, 1000);
+
+      //await upload;
+      clearInterval(progressInterval);
+
+      const finalFormData = new FormData();
+      finalFormData.append("name", formData.get("name") as string);
+      finalFormData.append("artistId", formData.get("artistId") as string);
+      finalFormData.append(
+        "description",
+        formData.get("description") as string
+      );
+      finalFormData.append("tag", formData.get("tag") as string);
+      finalFormData.append("image", formData.get("image") as File);
+      finalFormData.append("audioUrl", s3Url);
+
+      dispatch(finalFormData);
+    } catch (error) {
+      console.error("Upload error: ", error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <form
       className="flex flex-col items-center justify-center space-y-2 w-full"
-      action={dispatch}
+      onSubmit={handleSubmit}
     >
       <div className="mb-4 w-full md:w-1/2">
         <label>Name</label>
@@ -45,7 +138,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           required
         />
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('name')}
+          {renderErrors("name")}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -55,17 +148,13 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           className="p-1.5 bg-transparent border border-white w-full"
         >
           {artists.map((artist) => (
-            <option
-              key={artist.id}
-              className="text-black"
-              value={artist.id}
-            >
+            <option key={artist.id} className="text-black" value={artist.id}>
               {artist.name}
             </option>
           ))}
         </select>
         <div id="artist-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('artistId')}
+          {renderErrors("artistId")}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -79,7 +168,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           maxLength={5000}
         ></textarea>
         <div id="description-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('description')}
+          {renderErrors("description")}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -108,7 +197,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           </option>
         </select>
         <div id="tag-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('tag')}
+          {renderErrors("tag")}
         </div>
       </div>
       <div className="mb-4 md:w-1/2">
@@ -126,7 +215,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           required
         />
         <div id="image-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('image')}
+          {renderErrors("image")}
         </div>
       </div>
       <div className="mb-4 md:w-1/2">
@@ -144,10 +233,23 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           required
         />
         <div id="audio-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('audio')}
+          {renderErrors("audioUrl")}
         </div>
       </div>
-      <SubmitButton>Save</SubmitButton>
+      <button
+        type="submit"
+        disabled={uploading}
+        className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
+      >
+        {uploading ? (
+          <span className="flex items-center">
+            <Loader2 className="animate-spin mr-2" />
+            Uploading...
+          </span>
+        ) : (
+          "Save"
+        )}
+      </button>
     </form>
   );
 }

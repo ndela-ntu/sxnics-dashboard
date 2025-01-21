@@ -369,12 +369,7 @@ const EpisodeSchema = z.object({
     .refine((file: File) => {
       return !file || file.size <= 1024 * 1024 * 5;
     }, "File size must be less than 5MB"),
-  audio: z
-    .instanceof(File)
-    .refine((file: File) => file.size !== 0, "Image is required")
-    .refine((file: File) => {
-      return !file || file.size <= 1024 * 1024 * 200;
-    }, "File size must be less than 200MB"),
+  audioUrl: z.string().url({message: 'Invalid url provided'}),
 });
 
 export type EpisodeState = {
@@ -383,7 +378,7 @@ export type EpisodeState = {
     artistId?: string[];
     description?: string[];
     image?: string[];
-    audio?: string[];
+    audioUrl?: string[];
     tag?: string[];
   };
   message?: string | null;
@@ -399,7 +394,7 @@ export async function createEpisode(
     artistId: parseInt(formData.get("artistId") as string),
     description: formData.get("description"),
     image: formData.get("image"),
-    audio: formData.get("audio"),
+    audioUrl: formData.get("audioUrl"),
     tag: formData.get("tag"),
   });
 
@@ -413,10 +408,10 @@ export async function createEpisode(
   const supabase = createClient();
 
   try {
-    const { name, artistId, description, image, audio, tag } =
+    const { name, artistId, description, image, audioUrl, tag } =
       validatedFields.data;
 
-    if (!(image instanceof File) || !(audio instanceof File)) {
+    if (!(image instanceof File) /*|| !(audio instanceof File)*/) {
       throw new Error("Image and audio must be files");
     }
 
@@ -434,7 +429,7 @@ export async function createEpisode(
       data: { publicUrl },
     } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
 
-    const fileName = `${uuidv4()}_${audio.name}`
+    /*const fileName = `${uuidv4()}_${audio.name}`
     const uploadParams = {
       Bucket: process.env.S3_BUCKET_NAME,
       Key: fileName,
@@ -450,7 +445,7 @@ export async function createEpisode(
     await s3Client.send(command)
 
     const s3Url = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`
-    
+    */
     // 2. Store item details in Supabase table
     const { data, error } = await supabase
       .from("episodes")
@@ -459,7 +454,7 @@ export async function createEpisode(
         artistId,
         description,
         imageUrl: publicUrl,
-        audioUrl: s3Url,
+        audioUrl,
         tag,
       })
       .select();
@@ -470,13 +465,13 @@ export async function createEpisode(
   } catch (error) {
     console.error("Error in createEpisode:", error);
     return <EpisodeState>{ error: {}, message: "Error from server" };
-  } 
+  }
 
   revalidatePath("/dashboard/episodes");
   redirect("/dashboard/episodes");
 }
 
-const EditEpisodeSchema = EpisodeSchema.omit({ audio: true, image: true });
+const EditEpisodeSchema = EpisodeSchema.omit({ audioUrl: true, image: true });
 export async function editEpisode(prevState: EpisodeState, formData: FormData) {
   const validatedFields = EditEpisodeSchema.safeParse({
     id: formData.get("id"),

@@ -13,12 +13,26 @@ interface EditProps {
   artists: IArtist[];
 }
 
+type FieldName = 'name' | 'artistId' | 'description' | 'tag' | 'image';
+
 export default function EditEpisodeForm({ episode, artists }: EditProps) {
   const initialState = { message: null, errors: {} };
   const [state, dispatch] = useFormState<EpisodeState, FormData>(
     editEpisode,
     initialState
   );
+
+  const renderErrors = (fieldName: FieldName) => {
+    if (state?.errors && fieldName in state.errors) {
+      const fieldErrors = state.errors[fieldName];
+      return fieldErrors?.map((error: string, i: number) => (
+        <p key={i} className="text-sm text-red-500">
+          {error}
+        </p>
+      ));
+    }
+    return null;
+  };
 
   return (
     <form
@@ -37,13 +51,8 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
           placeholder="Item Name"
           required
         />
-        <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.name &&
-            state.errors.name.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+         <div id="name-error" aria-live="polite" aria-atomic="true">
+          {renderErrors('name')}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -59,13 +68,8 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
             </option>
           ))}
         </select>
-        <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.artistId &&
-            state.errors.artistId.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+        <div id="artist-error" aria-live="polite" aria-atomic="true">
+          {renderErrors('artistId')}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -79,13 +83,8 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
           minLength={15}
           maxLength={5000}
         ></textarea>
-        <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.description &&
-            state.errors.description.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+        <div id="description-error" aria-live="polite" aria-atomic="true">
+          {renderErrors('description')}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -114,13 +113,8 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
             Minimal House
           </option>
         </select>
-        <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.tag &&
-            state.errors.tag.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+        <div id="tag-error" aria-live="polite" aria-atomic="true">
+          {renderErrors('tag')}
         </div>
       </div>
       <div className="mb-4 md:w-1/2">
@@ -136,13 +130,8 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
           type="file"
           accept="image/*"
         />
-        <div id="price-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.image &&
-            state.errors.image.map((error: string, i) => (
-              <p key={i} className="text-sm text-red-500">
-                {error}
-              </p>
-            ))}
+        <div id="image-error" aria-live="polite" aria-atomic="true">
+          {renderErrors('image')}
         </div>
         <p className="mt-2 text-sm italic">
           *Leave empty to keep the current image
