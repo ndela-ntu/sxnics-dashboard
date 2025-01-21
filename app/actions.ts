@@ -14,10 +14,10 @@ import {
 import { v4 as uuidv4 } from "uuid";
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION!,
+  region: process.env.NEXT_PUBLIC_AWS_REGION!,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY!,
   },
 });
 
@@ -369,7 +369,7 @@ const EpisodeSchema = z.object({
     .refine((file: File) => {
       return !file || file.size <= 1024 * 1024 * 5;
     }, "File size must be less than 5MB"),
-  audioUrl: z.string().url({message: 'Invalid url provided'}),
+  audioUrl: z.string().url({ message: "Invalid url provided" }),
 });
 
 export type EpisodeState = {
@@ -575,6 +575,8 @@ export async function deleteEpisode(id: number) {
       }
     }
 
+    //https://sxnics-bucket.s3.eu-west-1.amazonaws.com/15388240-9a03-4496-8ce8-033d38ad8353_bread4soul_2025-01-12T00_32_49-08_00.mp3
+
     if (episode.audioUrl) {
       const url = new URL(episode.audioUrl);
       const bucketName = url.hostname.split(".")[0];
@@ -584,9 +586,13 @@ export async function deleteEpisode(id: number) {
         Bucket: bucketName,
         Key: objectKey,
       };
-
-      const command = new DeleteObjectCommand(params);
-      await s3Client.send(command);
+      
+      try {
+        const command = new DeleteObjectCommand(params);
+        await s3Client.send(command);
+      } catch (error) {
+        console.error("Failed to delete audio", error);
+      }
     }
 
     const { error: deleteError } = await supabase
