@@ -13,4 +13,5 @@ export interface IEpisode {
     imageUrl: string;
     socialLinks: any;
   };
+  plays: number;
 }

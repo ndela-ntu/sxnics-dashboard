@@ -137,47 +137,93 @@ export const signOutAction = async () => {
   return redirect("/sign-in");
 };
 
+const colorVariants = ["Black", "White"] as const;
+const sizeVariants = ["S", "M", "L", "XL"] as const;
+const ITEM_TYPES = ["SHIRT", "HOODIE", "CAP"] as const;
+
+const inventorySchema = z.array(
+  z.object({
+    name: z.enum(colorVariants),
+    image: z.instanceof(File, { message: "Product image is required" }),
+    sizes: z.array(
+      z.object({
+        name: z.enum(sizeVariants),
+        quantity: z.number().min(0, "Quantity must be at least 0"),
+      }),
+      { message: "Size is required" }
+    ),
+  }),
+  { message: "Color is required" }
+);
+
 const ShopItemSchema = z.object({
   id: z.string(),
+  type: z.enum(["CAP", "HOODIE", "SHIRT"]),
   name: z.string().min(1, { message: "Name is required" }),
   description: z.string().min(1, { message: "Description is required" }),
   price: z.coerce.number().gt(0, { message: "Price should be greater than 0" }),
-  image: z
-    .instanceof(File)
-    .refine((file: File) => file.size !== 0, "Image is required")
-    .refine((file: File) => {
-      return !file || file.size <= 1024 * 1024 * 5;
-    }, "File size must be less than 5MB"),
-  quantity: z.coerce
-    .number()
-    .gt(-1, { message: "Quantity should be greater than -1" }),
+  inventory: inventorySchema,
 });
 
 export type ShopItemState = {
   errors?: {
+    type?: string[];
     name?: string[];
     description?: string[];
     price?: string[];
-    image?: string[];
-    quantity?: string[];
+    inventory?: string[];
   };
   message?: string | null;
 };
+
+function getInventory({
+  type,
+  formData,
+}: {
+  type: "SHIRT" | "HOODIE" | "CAP";
+  formData: FormData;
+}) {
+  const variants = [];
+  for (const color of ["BLACK", "WHITE"]) {
+    const image = formData.get(`image-${color}`);
+
+    if (type === "SHIRT" || type === "HOODIE") {
+      // Process sizes for clothing items
+      for (const size of ["S", "M", "L", "XL"]) {
+        const quantity = formData.get(`quantity-${color}-${size}`);
+        if (quantity) {
+          variants.push({ color, size, quantity, image });
+        }
+      }
+    } else {
+      const quantity = formData.get(`quantity-${color}`);
+      if (quantity) {
+        variants.push({ color, quantity, image });
+      }
+    }
+  }
+  console.log(variants);
+  return variants;
+}
 
 const CreateShopItemSchema = ShopItemSchema.omit({ id: true });
 export async function createShopItem(
   prevState: ShopItemState,
   formData: FormData
 ) {
+  const type = formData.get("type") as "SHIRT" | "HOODIE" | "CAP";
+  const inventory = getInventory({ type, formData });
+
   const validatedFields = CreateShopItemSchema.safeParse({
+    type: type,
     name: formData.get("name"),
     description: formData.get("description"),
     price: formData.get("price"),
-    image: formData.get("image"),
-    quantity: formData.get("quantity"),
+    inventory: inventory,
   });
 
   if (!validatedFields.success) {
+    console.error(validatedFields.error.flatten().fieldErrors);
     return {
       errors: validatedFields.error.flatten().fieldErrors,
       message: "Missed fields, failed to create item.",
@@ -187,9 +233,10 @@ export async function createShopItem(
   const supabase = createClient();
 
   try {
-    const { name, price, description, image, quantity } = validatedFields.data;
+    const { type, name, price, description, inventory } = validatedFields.data;
 
-    // 1. Upload image to Supabase Storage
+    console.log(type, name, price, description, inventory);
+    /* // 1. Upload image to Supabase Storage
     const { data: imageData, error: imageError } = await supabase.storage
       .from("sxnics/shop_items")
       .upload(`${Date.now()}-${image.name}`, image);
@@ -217,7 +264,7 @@ export async function createShopItem(
 
     if (error) {
       throw new Error(`Failed to insert item: ${error.message}`);
-    }
+    }*/
   } catch (error) {
     console.error("Error in createClothingItem:", error);
     return { error };
@@ -586,7 +633,7 @@ export async function deleteEpisode(id: number) {
         Bucket: bucketName,
         Key: objectKey,
       };
-      
+
       try {
         const command = new DeleteObjectCommand(params);
         await s3Client.send(command);
