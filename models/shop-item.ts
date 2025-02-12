@@ -3,6 +3,5 @@ export interface IShopItem {
   name: string;
   description: string;
   price: number;
-  imageUrl: string;
-  quantity: number;
+  shop_item_type: {id: number; type: string; has_sizes: boolean;}
 }

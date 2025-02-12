@@ -1,45 +1,95 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFormState } from "react-dom";
+import { useFormState, useFormStatus } from "react-dom";
 import { ShopItemState, createShopItem } from "@/app/actions";
 import { createClient } from "@/utils/supabase/client";
 import StyledCheckbox from "../style-checkbox";
+import { Loader2 } from "lucide-react";
 
-const ITEM_TYPES = ["SHIRT", "HOODIE", "CAP"] as const;
-type ItemType = (typeof ITEM_TYPES)[number];
+function SubmitButton({ disabled }: { disabled: boolean }) {
+  const status = useFormStatus();
+
+  return (
+    <button
+      className={`bg-white px-2 py-1 text-black ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+      type="submit"
+      disabled={disabled || status.pending}
+    >
+      {status.pending ? (
+        <Loader2 className="h-7 w-7 animate-spin" />
+      ) : (
+        "Add Item"
+      )}
+    </button>
+  );
+}
 
 export default function CreateItemForm() {
   const supabase = createClient();
 
-  const [checkedVariants, setCheckedVariants] = useState<{
-    blackChecked: boolean;
-    whiteChecked: boolean;
-  }>({ blackChecked: false, whiteChecked: false });
+  const [checkedVariants, setCheckedVariants] = useState<
+    Record<string, boolean>
+  >({});
 
   const [sizes, setSizes] = useState<{ id: number; name: string }[]>([]);
+  const [colors, setColors] = useState<{ id: number; name: string }[]>([]);
+  const [itemTypes, setItemTypes] = useState<
+    { id: number; type: string; has_sizes: boolean }[]
+  >([]);
+
+  const [selectedItemType, setSelectedItemType] = useState<number | null>(null);
 
   const initialState = { message: null, errors: {} };
-  const [state, formAction] = useFormState<ShopItemState, FormData>(
+  const [state, dispatch] = useFormState<ShopItemState, FormData>(
     createShopItem,
     initialState
   );
-  const [selectedType, setSelectedType] = useState<ItemType>("SHIRT");
-
-  const showSizes = selectedType === "SHIRT" || selectedType === "HOODIE";
 
   useEffect(() => {
-    const fetchSizes = async () => {
-      const { data: sizes } = await supabase.from('size').select("*");
-      setSizes(sizes || []);
-    }
+    const fetchClothingProps = async () => {
+      const { data: sizes } = await supabase.from("size").select("*");
+      const { data: colors } = await supabase.from("color").select("*");
+      const { data: itemTypes } = await supabase
+        .from("shop_item_type")
+        .select("*");
 
-    fetchSizes();
-  }, [])
+      setSizes(sizes || []);
+      if (colors) {
+        const initialCheckedState = colors.reduce(
+          (acc, color) => {
+            acc[color.name] = false;
+            return acc;
+          },
+          {} as Record<string, boolean>
+        );
+
+        setCheckedVariants(initialCheckedState);
+        setColors(colors);
+      }
+      if (itemTypes && itemTypes.length > 0) {
+        setSelectedItemType(itemTypes[0].id);
+        setItemTypes(itemTypes);
+      }
+    };
+
+    fetchClothingProps();
+  }, []);
+
+  const handleCheckboxChange = (colorName: string) => {
+    setCheckedVariants((prev) => ({
+      ...prev,
+      [colorName]: !prev[colorName],
+    }));
+  };
+
+  const atLeastOneColorChecked = Object.values(checkedVariants).some(
+    (isChecked) => isChecked
+  );
 
   return (
     <form
-      action={formAction}
+      action={dispatch}
       className="flex flex-col items-center justify-center w-full"
     >
       <div className="space-y-4 w-full md:w-1/2">
@@ -48,15 +98,21 @@ export default function CreateItemForm() {
             Item Type
           </label>
           <select
-            name="type"
+            name="item_type_id"
             className="w-full p-1.5 bg-transparent text-white border border-white"
             required
-            onChange={(e) => setSelectedType(e.target.value as ItemType)}
-            value={selectedType}
+            onChange={(e) => {
+              setSelectedItemType(parseInt(e.target.value));
+            }}
+            value={selectedItemType?.toString()}
           >
-            {ITEM_TYPES.map((type) => (
-              <option className="bg-white text-black" key={type} value={type}>
-                {type}
+            {itemTypes.map((itemType, index) => (
+              <option
+                className="bg-white text-black"
+                key={index}
+                value={itemType.id}
+              >
+                {itemType.type}
               </option>
             ))}
           </select>
@@ -127,159 +183,82 @@ export default function CreateItemForm() {
         </div>
         <div className="border-t pt-4">
           <h3 className="font-medium mb-2">Inventory Variants</h3>
-          <div className="flex flex-col space-y-3">
-            {/*Black Inventory*/}
-            <div>
+          {colors.map((color, index) => (
+            <div key={index} className="flex flex-col space-y-5 border-t py-5">
               <div className="flex space-x-3">
                 <StyledCheckbox
-                  label="Black"
-                  onChange={(value) =>
-                    setCheckedVariants((prev) => ({
-                      ...prev,
-                      blackChecked: value,
-                    }))
-                  }
+                  label={color.name}
+                  name={`checked_${color.name}`}
+                  onChange={(_) => {
+                    handleCheckboxChange(color.name);
+                  }}
+                  checked={checkedVariants[color.name]}
                 />
               </div>
-              {checkedVariants.blackChecked && (
+              {checkedVariants[color.name] && (
                 <div>
-                  {showSizes ? (
-                    <div className="space-y-3">
-                      {sizes.map((size) => (
-                        <div
-                          key={size.name}
-                          className="flex items-center gap-4"
-                        >
-                          <label className="w-20">{size.name}</label>
-                          <input
-                            type="number"
-                            name={`quantity-BLACK-${size.name}`}
-                            min="0"
-                            className="p-1.5 bg-transparent text-white border border-white w-full"
-                            placeholder="Qty"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-4">
-                      <label className="w-20">Quantity</label>
-                      <input
-                        type="number"
-                        name={`quantity-BLACK`}
-                        min="0"
-                        className="p-1.5 bg-transparent text-white border border-white w-full"
-                        placeholder="Qty"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/*White Inventory*/}
-            <div>
-              <div className="flex space-x-3">
-                <StyledCheckbox
-                  label="White"
-                  onChange={(value) =>
-                    setCheckedVariants((prev) => ({
-                      ...prev,
-                      whiteChecked: value,
-                    }))
-                  }
-                />
-              </div>
-              {checkedVariants.whiteChecked && (
-                <div>
-                  {showSizes ? (
-                    <div className="space-y-3">
-                      {sizes.map((size) => (
-                        <div
-                          key={size.name}
-                          className="flex items-center gap-4"
-                        >
-                          <label className="w-20">{size.name}</label>
-                          <input
-                            type="number"
-                            name={`quantity-WHITE-${size.name}`}
-                            min="0"
-                            className="p-1.5 bg-transparent text-white border border-white w-full"
-                            placeholder="Qty"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-4">
-                      <label className="w-20">Quantity</label>
-                      <input
-                        type="number"
-                        name={`quantity-WHITE`}
-                        min="0"
-                        className="p-1.5 bg-transparent text-white border border-white w-full"
-                        placeholder="Qty"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        {/* <div className="space-y-4">
-            {colors.map((color, index) => (
-              <fieldset key={index} className="border p-4 rounded-md">
-                <legend className="font-medium px-2">{color.name}</legend>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-white-700">
-                    Product Image ({color.name})
-                  </label>
-                  <input
-                    type="file"
-                    name={`image-${color.name}`}
-                    accept="image/*"
-                    className="w-full"
-                    required
-                  />
-                </div>
-
-                {showSizes ? (
-                  <div className="space-y-3">
-                    {sizes.map((size, index) => (
-                      <div key={index} className="flex items-center gap-4">
-                        <label className="w-20">{size.name}</label>
-                        <input
-                          type="number"
-                          name={`quantity-${color.name}-${size.name}`}
-                          min="0"
-                          className="p-1.5 bg-transparent text-white border border-white w-full"
-                          placeholder="Qty"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-4">
-                    <label className="w-20">Quantity</label>
+                  <div className="mb-4">
+                    <label className="block text-sm">
+                      Product Image ({color.name})
+                    </label>
                     <input
-                      type="number"
-                      name={`quantity-${color}`}
-                      min="0"
-                      className="p-1.5 bg-transparent text-white border border-white w-full"
-                      placeholder="Qty"
+                      type="file"
+                      name={`image_${color.name}`} // Ensure the name matches the key used in `parseFormData`
+                      accept="image/*"
+                      className="w-full"
+                      required={checkedVariants[color.name]} // Only require the file if the color is checked
                     />
                   </div>
-                )}
-              </fieldset>
-            ))}
-          </div>*/}
+                  {itemTypes.find(
+                    (itemType) => itemType.id === selectedItemType
+                  )?.has_sizes ? (
+                    <div className="space-y-3">
+                      {sizes.map((size) => (
+                        <div
+                          key={size.name}
+                          className="flex items-center gap-4"
+                        >
+                          <label className="w-20">{size.name}</label>
+                          <input
+                            type="number"
+                            name={`quantity_${color.name}_${size.name}`}
+                            min="0"
+                            className="p-1.5 bg-transparent text-white border border-white w-full"
+                            placeholder="Qty"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <label className="w-20">Quantity</label>
+                      <input
+                        type="number"
+                        name={`quantity-${color.name}`}
+                        min="0"
+                        className="p-1.5 bg-transparent text-white border border-white w-full"
+                        placeholder="Qty"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+          <div id="colors-error" aria-live="polite" aria-atomic="true">
+            {state.errors?.colors &&
+              state.errors.colors.map((error: string, i) => (
+                <p key={i} className="text-sm text-red-500">
+                  {error}
+                </p>
+              ))}
+          </div>
+        </div>
+        {state?.message && (
+          <div className="w-full text-red-600">{state.message}</div>
+        )}
       </div>
-      {state?.message && <div className="text-green-600">{state.message}</div>}
-      <button className="bg-white px-2 py-1 text-black" type="submit">
-        Add Item
-      </button>
+      <SubmitButton disabled={!atLeastOneColorChecked} />
     </form>
   );
 }
