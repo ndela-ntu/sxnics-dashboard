@@ -2,13 +2,14 @@ import Image from "next/image";
 import { DeleteItemButton } from "./delete-item-button";
 import { IShopItem } from "@/models/shop-item";
 import EditButton from "../edit-button";
+import placeholderImage from '../../../app/placeholder.webp'
 
 export default function ShopItem({ item }: { item: IShopItem }) {
   return (
     <div className="border shadow-md overflow-hidden p-1 md:p-2.5">
       <div className="relative aspect-square">
         <Image
-          src={item.imageUrl}
+          src={placeholderImage}
           alt={item.name}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
