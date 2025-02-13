@@ -10,7 +10,7 @@ export default async function Page() {
   const supabase = createClient();
   const { data: shopItems, error } = await supabase
     .from("shop_items")
-    .select()
+    .select("*")
     .abortSignal(AbortSignal.timeout(5000));
 
   if (error) {

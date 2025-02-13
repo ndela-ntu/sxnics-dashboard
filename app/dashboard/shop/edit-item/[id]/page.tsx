@@ -23,8 +23,6 @@ export default async function Page({ params }: { params: { id: number } }) {
     return <div>{`An error occurred: ${shopItemError || variantsError}`}</div>;
   }
 
-  console.log(shopItemVariants, shopItem);
-
   return (
     <div>
       <h1>Edit Item</h1>

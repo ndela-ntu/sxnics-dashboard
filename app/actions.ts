@@ -136,15 +136,28 @@ export const signOutAction = async () => {
   await supabase.auth.signOut();
   return redirect("/sign-in");
 };
+// Helper function to validate Supabase public URLs
+const isValidSupabaseUrl = (url: string): boolean => {
+  const supabaseUrlPattern =
+    /^https:\/\/[^\/]+\/storage\/v1\/object\/public\/.+/;
+  return supabaseUrlPattern.test(url);
+};
 
+// Schema for the color variant
 const colorVariantSchema = z.object({
+  id: z.string().optional(), // Optional for creation, required for editing
   checked: z.boolean(),
   image: z
-    .instanceof(File)
-    .refine(
-      (file) => file.size > 0, // Ensure the file is not empty
-      { message: "Image is required for checked colors." }
-    )
+    .union([
+      z.instanceof(File).refine(
+        (file) => file.size > 0, // Ensure the file is not empty
+        { message: "Image file must not be empty." }
+      ),
+      z.string().refine(
+        (url) => isValidSupabaseUrl(url), // Ensure the URL is a valid Supabase public URL
+        { message: "Invalid Supabase public URL." }
+      ),
+    ])
     .optional(), // Make the image optional
   quantities: z
     .record(z.string(), z.number().min(0))
@@ -156,6 +169,7 @@ const colorVariantSchema = z.object({
     ),
 });
 
+// Schema for the inventory form
 const inventoryFormSchema = z
   .object({
     colors: z.record(z.string(), colorVariantSchema),
@@ -177,8 +191,8 @@ const inventoryFormSchema = z
         if (!colorData.checked) return true; // Skip unchecked colors
         return (
           Object.values(colorData.quantities).every((qty) => qty >= 0) &&
-          colorData.image && // Ensure image exists for checked colors
-          colorData.image.size > 0 // Ensure image is not empty
+          colorData.image !== undefined && // Ensure image exists for checked colors
+          (typeof colorData.image === "string" || colorData.image.size > 0) // Ensure image is valid
         );
       });
     },
@@ -189,6 +203,7 @@ const inventoryFormSchema = z
   );
 
 export type InventoryFormData = z.infer<typeof inventoryFormSchema>;
+
 export async function parseFormData(
   formData: FormData,
   colors: { name: string }[],
@@ -200,8 +215,19 @@ export async function parseFormData(
       (acc, color) => {
         const checked = formData.get(`checked_${color.name}`) === "on";
         const imageFile = formData.get(`image_${color.name}`);
-        // Only include image if it's actually a File and not null or undefined
-        const image = imageFile instanceof File ? imageFile : undefined;
+
+        // Handle image: it can be a File or a valid Supabase URL
+        let image: File | string | undefined;
+        if (imageFile instanceof File && imageFile.size > 0) {
+          image = imageFile; // It's a valid File
+        } else if (
+          typeof imageFile === "string" &&
+          isValidSupabaseUrl(imageFile)
+        ) {
+          image = imageFile; // It's a valid Supabase URL
+        } else {
+          image = undefined; // Invalid or missing image
+        }
 
         const quantities = hasSizes
           ? sizes.reduce(
@@ -228,7 +254,7 @@ export async function parseFormData(
             )
           : (() => {
               const defaultQuantity =
-                parseInt(formData.get(`quantity-${color.name}`) as string) || 0;
+                parseInt(formData.get(`quantity_${color.name}`) as string) || 0;
               if (isNaN(defaultQuantity)) {
                 throw new Error(
                   `Invalid quantity value for color ${color.name}`
@@ -241,7 +267,7 @@ export async function parseFormData(
           ...acc,
           [color.name]: {
             checked,
-            ...(image && { image }), // Only include image if it exists
+            ...(image && { image }), // Only include image if it exists and is valid
             quantities,
           },
         };
@@ -250,7 +276,7 @@ export async function parseFormData(
         string,
         {
           checked: boolean;
-          image?: File;
+          image?: File | string; // Allow image to be File or string (URL)
           quantities: Record<string, number>;
         }
       >
@@ -336,7 +362,6 @@ export async function createShopItem(
     }
 
     const { colors: validatedColors } = validatedInventoryFields.data;
-    console.log(item_type_id, name, price, description, validatedColors);
 
     const { data: shopItem, error } = await supabase
       .from("shop_items")
@@ -349,6 +374,10 @@ export async function createShopItem(
       .select("*")
       .single();
 
+    if (error) {
+      throw new Error(`Failed to insert shop item:${error.message}`);
+    }
+
     for (const [colorName, colorData] of Object.entries(validatedColors)) {
       if (colorData.checked) {
         if (!colorData.image) {
@@ -357,7 +386,7 @@ export async function createShopItem(
 
         let imagePath;
         let publicUrl: string = "";
-        if (colorData.image) {
+        if (colorData.image && colorData.image instanceof File) {
           imagePath = `shop_items/${shopItem.id}/colors/${colorName}/${colorData.image.name}`;
           const { error: uploadError, data: uploadData } =
             await supabase.storage
@@ -398,10 +427,9 @@ export async function createShopItem(
           }
         );
 
-        const { error: variantError, data: variantData } = await supabase
+        const { error: variantError } = await supabase
           .from("shop_item_variant")
-          .insert(variantRecords)
-          .select();
+          .insert(variantRecords);
 
         if (variantError) {
           throw new Error(
@@ -456,9 +484,7 @@ export async function editShopItem(
   }
 
   try {
-    const { item_type_id, name, price, description } = validatedFields.data;
-
-    //Deal with deletes before anything
+    //Deal with deletes before anything else
     if (itemTypeChanged) {
       const { data: shopItemVariants, error: variantsError } = await supabase
         .from("shop_item_variant")
@@ -473,7 +499,7 @@ export async function editShopItem(
 
       const imagesToDeleteUrls: string[] = [];
       shopItemVariants.forEach((variant) => {
-        if (!(variant.image_url in imagesToDeleteUrls)) {
+        if (!imagesToDeleteUrls.includes(variant.image_url)) {
           imagesToDeleteUrls.push(variant.image_url);
         }
       });
@@ -533,10 +559,10 @@ export async function editShopItem(
 
       const imagesToDeleteUrls: string[] = [];
       shopItemVariants.forEach((variant) => {
-        if (variant.color_id in uncheckedIds.uncheckedColorIds) {
+        if (!uncheckedIds.uncheckedColorIds.includes(variant.color_id)) {
           imagesToDeleteUrls.push(variant.image_url);
         }
-      })
+      });
 
       const deleteImagePromises = imagesToDeleteUrls.map(async (imageUrl) => {
         const filePath = imageUrl.split("/object/public/")[1];
@@ -551,25 +577,158 @@ export async function editShopItem(
         }
       });
 
-      const deleteVariantPromises = uncheckedIds.uncheckedColorIds.map(async (id) => {
-        const { error: deleteError } = await supabase
-          .from("shop_item_variant")
-          .delete()
-          .eq("color_id", id)
-          .eq("shop_item_id", shop_item_id);
+      const deleteVariantPromises = uncheckedIds.uncheckedColorIds.map(
+        async (id) => {
+          const { error: deleteError } = await supabase
+            .from("shop_item_variant")
+            .delete()
+            .eq("color_id", id)
+            .eq("shop_item_id", shop_item_id);
 
-        if (deleteError) {
-          throw new Error(
-            `Error deleting shop_item_variant: ${id}, ${deleteError.message}`
-          );
+          if (deleteError) {
+            throw new Error(
+              `Error deleting shop_item_variant: ${id}, ${deleteError.message}`
+            );
+          }
         }
-      });
+      );
 
       await Promise.all(deleteVariantPromises);
       await Promise.all(deleteImagePromises);
     }
 
-    
+    const { item_type_id, name, price, description } = validatedFields.data;
+
+    const hasSizes =
+      itemTypes?.find((itemType) => itemType.id === item_type_id).has_sizes ??
+      false;
+
+    const validatedInventoryFields = await parseFormData(
+      formData,
+      colors,
+      sizes,
+      hasSizes
+    );
+
+    if (!validatedInventoryFields.success) {
+      console.error(validatedInventoryFields.error.flatten().fieldErrors);
+      return {
+        errors: validatedInventoryFields.error.flatten().fieldErrors,
+        message: "Missed fields, failed to create item",
+      };
+    }
+
+    const { colors: validatedColors } = validatedInventoryFields.data;
+    console.log(item_type_id, name, price, description, validatedColors);
+
+    const { data: shopItem, error: shopItemError } = await supabase
+      .from("shop_items")
+      .update({
+        name,
+        description,
+        price,
+        item_type_id,
+      })
+      .eq("id", shop_item_id)
+      .select("*")
+      .single();
+
+    if (shopItemError) {
+      throw new Error(`Failed to insert shop item:${shopItemError.message}`);
+    }
+
+    for (const [colorName, colorData] of Object.entries(validatedColors)) {
+      if (colorData.checked) {
+        if (!colorData.image) {
+          throw new Error(`Image required for color ${colorName}`);
+        }
+      }
+
+      let imagePath;
+      let publicUrl: string | undefined =
+        typeof colorData.image === "string" ? colorData.image : undefined;
+      if (colorData.image && colorData.image instanceof File) {
+        imagePath = `shop_items/${shopItem.id}/colors/${colorName}/${colorData.image.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("sxnics")
+          .upload(imagePath, colorData.image, { upsert: true });
+
+        if (uploadError) {
+          throw new Error(
+            `Failed to upload image for ${colorName}: ${uploadError.message}`
+          );
+        }
+
+        const {
+          data: { publicUrl: url },
+        } = supabase.storage.from("sxnics").getPublicUrl(imagePath);
+
+        publicUrl = url;
+      }
+
+      const color = colors.find((c) => c.name === colorName);
+      if (!color) {
+        throw new Error(`Color ${colorName} not found in colors list`);
+      }
+
+      const variantRecords = Object.entries(colorData.quantities).map(
+        ([sizeName, quantity]) => {
+          const size = sizes.find((s) => s.name === sizeName);
+          if (!size) {
+            throw new Error(`Size ${sizeName} not found in sizes list`);
+          }
+
+          return {
+            shop_item_id: shopItem.id,
+            color_id: color.id,
+            size_id: size.id,
+            quantity: quantity,
+            image_url: publicUrl,
+          };
+        }
+      );
+
+      const variantPromises = variantRecords.map(async (record) => {
+        const { data: variant, error: shopItemVariantError } = await supabase
+          .from("shop_item_variant")
+          .select("*")
+          .eq("shop_item_id", record.shop_item_id)
+          .eq("color_id", record.color_id)
+          .eq("size_id", record.size_id)
+          .maybeSingle();
+
+        if (shopItemVariantError) {
+          throw new Error(
+            `Error fetch shop item variant ${shopItemVariantError.message}`
+          );
+        }
+
+        if (variant) {
+          const { error: updateVariantError } = await supabase
+            .from("shop_item_variant")
+            .update(record)
+            .eq("id", variant.id);
+
+          if (updateVariantError) {
+            throw new Error(
+              `Error updating shop item variant: ${updateVariantError.message}`
+            );
+          }
+        } else {
+          const { error: insertVariantError } = await supabase
+            .from("shop_item_variant")
+            .insert(record);
+
+          if (insertVariantError) {
+            throw new Error(
+              `Error inserting shop item variant: ${insertVariantError.message}`
+            );
+          }
+        }
+      });
+
+      await Promise.all(variantPromises);
+    }
   } catch (error) {
     console.error("Error in editClothingItem:", error);
     return { error };

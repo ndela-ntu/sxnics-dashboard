@@ -117,21 +117,25 @@ export default function EditClothingItem({
   return (
     <form
       action={(formData) => {
-        const result = getDifferentRecords(
-          initialCheckedState,
-          checkedVariants
-        );
-        const uncheckedColorsNames = Object.keys(result).map(
-          (variant) => variant
-        );
+        const keysWithChangedState = Object.entries(initialCheckedState)
+          .filter(
+            ([key, value]) => value === true && checkedVariants[key] !== true
+          )
+          .map(([key]) => key);
+
         const uncheckedColorsId = colors
-          .filter((color) => uncheckedColorsNames.includes(color.name))
+          .filter((color) => keysWithChangedState.includes(color.name))
           .map((color) => color.id);
 
         formData.append(
           "uncheckedColorIds",
-          JSON.stringify({ uncheckedColorIds: uncheckedColorsId })
+          JSON.stringify({ uncheckedColorsId })
         );
+
+        formData.forEach((value, key) => {
+          console.log(`${key}:`, value);
+        });
+
         // dispatch(formData);
       }}
       className="flex flex-col items-center justify-center space-y-2 w-full"
@@ -141,7 +145,7 @@ export default function EditClothingItem({
         <input
           type="hidden"
           name="itemTypeChanged"
-          value={isCurrentSelectedItem.toString()}
+          value={(!isCurrentSelectedItem).toString()}
         />
 
         {/* Item Type Select */}
@@ -285,6 +289,15 @@ export default function EditClothingItem({
                           alt="Image of product"
                           size="sm"
                         />
+                        <input
+                          type="hidden"
+                          name={`image_${color.name}`}
+                          value={
+                            variants.find(
+                              (variant) => variant.color.id === color.id
+                            )?.image_url
+                          }
+                        />
                       </div>
                     ) : (
                       <label className="block text-sm">
@@ -341,7 +354,7 @@ export default function EditClothingItem({
                       <label className="w-20">Quantity</label>
                       <input
                         type="number"
-                        name={`quantity-${color.name}`}
+                        name={`quantity_${color.name}`}
                         min="0"
                         className="p-1.5 bg-transparent text-white border border-white w-full"
                         placeholder="Qty"
@@ -362,24 +375,20 @@ export default function EditClothingItem({
               )}
             </div>
           ))}
+          <div id="colors-error" aria-live="polite" aria-atomic="true">
+            {state.errors?.colors &&
+              state.errors.colors.map((error: string, i) => (
+                <p key={i} className="text-sm text-red-500">
+                  {error}
+                </p>
+              ))}
+          </div>
+          {state?.message && (
+            <div className="w-full text-red-600">{state.message}</div>
+          )}
         </div>
         <SubmitButton disabled={!atLeastOneColorChecked} />
       </div>
     </form>
   );
 }
-
-const getDifferentRecords = (
-  initialCheckedState: Record<string, boolean>,
-  checkedVariants: Record<string, boolean>
-): Record<string, boolean> => {
-  return Object.entries(initialCheckedState).reduce(
-    (acc, [key, value]) => {
-      if (!(key in checkedVariants)) {
-        acc[key] = value;
-      }
-      return acc;
-    },
-    {} as Record<string, boolean>
-  );
-};

@@ -234,7 +234,7 @@ export default function CreateItemForm() {
                       <label className="w-20">Quantity</label>
                       <input
                         type="number"
-                        name={`quantity-${color.name}`}
+                        name={`quantity_${color.name}`}
                         min="0"
                         className="p-1.5 bg-transparent text-white border border-white w-full"
                         placeholder="Qty"
