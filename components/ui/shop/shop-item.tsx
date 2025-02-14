@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 
 export default function ShopItem({ item }: { item: IShopItem }) {
   const supabase = createClient();
+  const [loading, setLoading] = useState(true);
 
   const [itemIndex, setItemIndex] = useState<number>(0);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -20,6 +21,7 @@ export default function ShopItem({ item }: { item: IShopItem }) {
     let hashColors: string[] = [];
 
     const fetchVariants = async () => {
+      setLoading(true);
       const { data: shopItemVariant, error } = await supabase
         .from("shop_item_variant")
         .select(`*, color(id, name, hash_color)`)
@@ -38,6 +40,7 @@ export default function ShopItem({ item }: { item: IShopItem }) {
 
       setImageUrls(imageUrls);
       setHashColors(hashColors);
+      setLoading(false);
     };
 
     fetchVariants();
@@ -46,13 +49,23 @@ export default function ShopItem({ item }: { item: IShopItem }) {
   return (
     <div className="border shadow-md overflow-hidden p-1 md:p-2.5">
       <div className="relative aspect-square">
-        <Image
-          src={imageUrls[itemIndex]}
-          alt={item.name}
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          className="object-cover"
-        />
+        {loading ? (
+          <Image
+            src={placeholderImage}
+            alt="Loading..."
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover"
+          />
+        ) : (
+          <Image
+            src={imageUrls[itemIndex] || placeholderImage}
+            alt={item.name}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover"
+          />
+        )}
       </div>
       <div className="flex items-center pt-2 space-x-2">
         {hashColors.map((color, index) => (
@@ -61,7 +74,8 @@ export default function ShopItem({ item }: { item: IShopItem }) {
               setItemIndex(index);
             }}
             key={index}
-            className={`border-2 w-6 h-6 bg-[${color}]`}
+            className={`border-2 w-6 h-6`}
+            style={{ backgroundColor: color }}
           />
         ))}
       </div>
