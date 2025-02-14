@@ -517,7 +517,7 @@ export async function editShopItem(
       });
 
       const deleteImagePromises = imagesToDeleteUrls.map(async (imageUrl) => {
-        const filePath = imageUrl.split("/object/public/")[1];
+        const filePath = imageUrl.split("/object/public/")[1].split('sxnics/')[1];
         const { error: imageDeleteError } = await supabase.storage
           .from("sxnics")
           .remove([filePath]);
@@ -578,7 +578,7 @@ export async function editShopItem(
       });
 
       const deleteImagePromises = imagesToDeleteUrls.map(async (imageUrl) => {
-        const filePath = imageUrl.split("/object/public/")[1];
+        const filePath = imageUrl.split("/object/public/")[1].split('sxnics/')[1];
         const { error: imageDeleteError } = await supabase.storage
           .from("sxnics")
           .remove([filePath]);
@@ -800,7 +800,8 @@ export async function deleteShopItem(id: number) {
     });
 
     const deleteImagePromises = imagesToDeleteUrls.map(async (imageUrl) => {
-      const filePath = imageUrl.split("/object/public/")[1];
+      const filePath = imageUrl.split("/object/public/")[1].split('sxnics/')[1];
+      console.log(filePath);
       const { error: imageDeleteError } = await supabase.storage
         .from("sxnics")
         .remove([filePath]);
