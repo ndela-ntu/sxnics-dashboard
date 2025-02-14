@@ -90,7 +90,7 @@ export default function CreateItemForm() {
   return (
     <form
       action={dispatch}
-      className="flex flex-col items-center justify-center w-full"
+      className="transition-all duration-300 flex flex-col items-center justify-center space-y-2 w-full"
     >
       <div className="space-y-4 w-full md:w-1/2">
         <div>

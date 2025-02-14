@@ -158,11 +158,6 @@ export default function EditClothingItem({
           }
         });
 
-        console.log("-------------------");
-        formData.forEach((value, key) => {
-          console.log(`${key}:`, value);
-        });
-
         dispatch(formData);
       }}
       className="transition-all duration-300 flex flex-col items-center justify-center space-y-2 w-full"
@@ -412,8 +407,8 @@ export default function EditClothingItem({
             <div className="w-full text-red-600">{state.message}</div>
           )}
         </div>
-        <SubmitButton disabled={!atLeastOneColorChecked} />
       </div>
+      <SubmitButton disabled={!atLeastOneColorChecked} />
     </form>
   );
 }
