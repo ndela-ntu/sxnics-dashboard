@@ -670,6 +670,20 @@ export async function editShopItem(
         let imagePath;
         let publicUrl: string | undefined =
           typeof colorData.image === "string" ? colorData.image : undefined;
+
+        if (publicUrl && colorData.image instanceof File) {
+          const filePath = publicUrl.split("/object/public/")[1];
+          const { error: imageDeleteError } = await supabase.storage
+            .from("sxnics")
+            .remove([filePath]);
+
+          if (imageDeleteError) {
+            throw new Error(
+              `Error deleting image: ${publicUrl}, ${imageDeleteError.message}`
+            );
+          }
+        }
+
         if (colorData.image && colorData.image instanceof File) {
           imagePath = `shop_items/${shop_item_id}/colors/${colorName}/${colorData.image.name}`;
           const { data: uploadData, error: uploadError } =
@@ -767,38 +781,62 @@ export async function deleteShopItem(id: number) {
   const supabase = createClient();
 
   try {
-    // Fetch the item to get the image URL
-    const { data: item, error: fetchError } = await supabase
-      .from("shop_items")
-      .select("imageUrl")
-      .eq("id", id)
-      .single();
+    const { data: shopItemVariants, error: variantsError } = await supabase
+      .from("shop_item_variant")
+      .select("*")
+      .eq("shop_item_id", id);
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch item: ${fetchError.message}`);
+    if (variantsError) {
+      throw new Error(
+        `Error fetching shop item variants:${variantsError.message}`
+      );
     }
 
-    // Delete the image from storage if it exists
-    if (item?.imageUrl) {
-      const imagePath = item.imageUrl.split("/").pop();
-      const { error: storageError } = await supabase.storage
-        .from("sxnics")
-        .remove([`shop_items/${imagePath}`]);
-
-      if (storageError) {
-        console.error(`Failed to delete image: ${storageError.message}`);
-        // Continue with item deletion even if image deletion fails
+    const imagesToDeleteUrls: string[] = [];
+    shopItemVariants.forEach((variant) => {
+      if (!imagesToDeleteUrls.includes(variant.image_url)) {
+        imagesToDeleteUrls.push(variant.image_url);
       }
-    }
+    });
 
-    // Delete the item from the database
-    const { error: deleteError } = await supabase
+    const deleteImagePromises = imagesToDeleteUrls.map(async (imageUrl) => {
+      const filePath = imageUrl.split("/object/public/")[1];
+      const { error: imageDeleteError } = await supabase.storage
+        .from("sxnics")
+        .remove([filePath]);
+
+      if (imageDeleteError) {
+        throw new Error(
+          `Error deleting image: ${imageUrl}, ${imageDeleteError.message}`
+        );
+      }
+    });
+
+    const deleteVariantPromises = shopItemVariants.map(async (variant) => {
+      const { error: deleteError } = await supabase
+        .from("shop_item_variant")
+        .delete()
+        .eq("id", variant.id);
+
+      if (deleteError) {
+        throw new Error(
+          `Error deleting variant with id: ${variant.id}, ${deleteError.message}`
+        );
+      }
+    });
+
+    await Promise.all(deleteImagePromises);
+    await Promise.all(deleteVariantPromises);
+
+    const { error: shopItemDeleteError } = await supabase
       .from("shop_items")
       .delete()
       .eq("id", id);
 
-    if (deleteError) {
-      throw new Error(`Failed to delete item: ${deleteError.message}`);
+    if (shopItemDeleteError) {
+      throw new Error(
+        `Error deleting shop item with id: ${id}, ${shopItemDeleteError.message}`
+      );
     }
   } catch (error) {
     console.error("Error in deleteClothingItem:", error);

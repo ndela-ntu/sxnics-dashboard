@@ -3,7 +3,7 @@
 import { IEpisode } from "@/models/episode";
 import Image from "next/image";
 import { useState, useRef } from "react";
-import { Play, Pause, EllipsisVertical } from "lucide-react";
+import { Play, Pause, EllipsisVertical, Music } from "lucide-react";
 import EllipsisMenu from "./ellipsis-menu";
 
 export default function EpisodeCard({ episode }: { episode: IEpisode }) {
@@ -69,10 +69,13 @@ export default function EpisodeCard({ episode }: { episode: IEpisode }) {
             </div>
           </div>
         </div>
-        <div className="flex space-x-2 bg-white text-black p-1 rounded-xl">
-          <span>Plays:</span>
-          <span>{episode.plays}</span>
-        </div>
+      </div>
+      <div className="text-sm flex space-x-1 bg-white text-black p-1 rounded-full">
+        <span>
+          <Music className="w-5 h-5" />
+        </span>
+        <span>:</span>
+        <span>{episode.plays}</span>
       </div>
       <EllipsisMenu id={episode.id} />
     </div>
