@@ -213,7 +213,7 @@ export default function CreateItemForm() {
                     (itemType) => itemType.id === selectedItemType
                   )?.has_sizes ? (
                     <div className="space-y-3">
-                      {sizes.map((size) => (
+                      {sizes.filter((size) => size.id !== 0).map((size) => (
                         <div
                           key={size.name}
                           className="flex items-center gap-4"

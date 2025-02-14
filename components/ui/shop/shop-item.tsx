@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 
 export default function ShopItem({ item }: { item: IShopItem }) {
   const supabase = createClient();
+
   const [itemIndex, setItemIndex] = useState<number>(0);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [hashColors, setHashColors] = useState<string[]>([]);
@@ -54,18 +55,15 @@ export default function ShopItem({ item }: { item: IShopItem }) {
         />
       </div>
       <div className="flex items-center pt-2 space-x-2">
-        {hashColors.map((color, index) => {
-          console.log(color, hashColors.length);
-          return (
-            <span
-              onClick={() => {
-                setItemIndex(index);
-              }}
-              key={index}
-              className={`border-2 w-6 h-6 bg-[${color}]`}
-            />
-          );
-        })}
+        {hashColors.map((color, index) => (
+          <span
+            onClick={() => {
+              setItemIndex(index);
+            }}
+            key={index}
+            className={`border-2 w-6 h-6 bg-[${color}]`}
+          />
+        ))}
       </div>
       <div className="flex w-full flex-col">
         <label className="text-xl font-bold">{item.name}</label>

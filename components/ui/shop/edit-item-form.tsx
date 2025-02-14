@@ -5,7 +5,7 @@ import { IShopItem } from "@/models/shop-item";
 import { IShopItemVariant } from "@/models/shop_item_variant";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2 } from "lucide-react";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useFormState } from "react-dom";
 import StyledCheckbox from "../style-checkbox";
@@ -46,6 +46,7 @@ export default function EditClothingItem({
     Record<string, boolean>
   >({});
 
+  const formRef = useRef<HTMLFormElement>(null);
   const [sizes, setSizes] = useState<{ id: number; name: string }[]>([]);
   const [colors, setColors] = useState<{ id: number; name: string }[]>([]);
   const [itemTypes, setItemTypes] = useState<
@@ -116,6 +117,7 @@ export default function EditClothingItem({
 
   return (
     <form
+      ref={formRef}
       action={(formData) => {
         const keysWithChangedState = Object.entries(initialCheckedState)
           .filter(
@@ -123,22 +125,47 @@ export default function EditClothingItem({
           )
           .map(([key]) => key);
 
-        const uncheckedColorsId = colors
-          .filter((color) => keysWithChangedState.includes(color.name))
-          .map((color) => color.id);
+        if (isCurrentSelectedItem) {
+          const uncheckedColorsIds = colors
+            .filter((color) => keysWithChangedState.includes(color.name))
+            .map((color) => color.id);
 
-        formData.append(
-          "uncheckedColorIds",
-          JSON.stringify({ uncheckedColorsId })
-        );
+          formData.append(
+            "uncheckedColorsIds",
+            JSON.stringify({ uncheckedColorsIds })
+          );
+        }
 
+        const form = formRef.current;
+
+        if (!form) return;
+
+        colors.forEach((color) => {
+          const colorName = color.name;
+          if (formData.get(`checked_${colorName}`)) {
+            const fileInput = form.querySelector<HTMLInputElement>(
+              `input[name="image_${colorName}"]`
+            );
+
+            if (!fileInput) return;
+
+            const file = fileInput.files?.[0];
+            const existingUrl = fileInput.dataset.existingUrl;
+
+            if (!file && existingUrl) {
+              formData.set(`image_${colorName}`, existingUrl);
+            }
+          }
+        });
+
+        console.log("-------------------");
         formData.forEach((value, key) => {
           console.log(`${key}:`, value);
         });
 
-        // dispatch(formData);
+        dispatch(formData);
       }}
-      className="flex flex-col items-center justify-center space-y-2 w-full"
+      className="transition-all duration-300 flex flex-col items-center justify-center space-y-2 w-full"
     >
       <div className="space-y-4 w-full md:w-1/2">
         <input type="hidden" name="shop_item_id" value={item.id} />
@@ -289,15 +316,6 @@ export default function EditClothingItem({
                           alt="Image of product"
                           size="sm"
                         />
-                        <input
-                          type="hidden"
-                          name={`image_${color.name}`}
-                          value={
-                            variants.find(
-                              (variant) => variant.color.id === color.id
-                            )?.image_url
-                          }
-                        />
                       </div>
                     ) : (
                       <label className="block text-sm">
@@ -310,13 +328,15 @@ export default function EditClothingItem({
                       accept="image/*"
                       className="w-full"
                       required={
-                        variants.find(
-                          (variant) => variant.color.id === color.id
-                        )?.image_url != undefined &&
                         checkedVariants[color.name] &&
                         !variants.some(
                           (variant) => variant.color.id === color.id
                         )
+                      }
+                      data-existing-url={
+                        variants.find(
+                          (variant) => variant.color.id === color.id
+                        )?.image_url || ""
                       }
                     />
                   </div>
@@ -326,28 +346,33 @@ export default function EditClothingItem({
                     (itemType) => itemType.id === selectedItemType
                   )?.has_sizes ? (
                     <div className="space-y-3">
-                      {sizes.map((size) => (
-                        <div key={size.id} className="flex items-center gap-4">
-                          <label className="w-20">{size.name}</label>
-                          <input
-                            type="number"
-                            name={`quantity_${color.name}_${size.name}`}
-                            min="0"
-                            className="p-1.5 bg-transparent text-white border border-white w-full"
-                            placeholder="Qty"
-                            defaultValue={
-                              isCurrentSelectedItem &&
-                              variants.some(
-                                (variant) => variant.color.id === color.id
-                              )
-                                ? (variants.find(
-                                    (variant) => variant.size.id === size.id
-                                  )?.quantity ?? 0)
-                                : undefined
-                            }
-                          />
-                        </div>
-                      ))}
+                      {sizes
+                        .filter((size) => size.id !== 0)
+                        .map((size) => (
+                          <div
+                            key={size.id}
+                            className="flex items-center gap-4"
+                          >
+                            <label className="w-20">{size.name}</label>
+                            <input
+                              type="number"
+                              name={`quantity_${color.name}_${size.name}`}
+                              min="0"
+                              className="p-1.5 bg-transparent text-white border border-white w-full"
+                              placeholder="Qty"
+                              defaultValue={
+                                isCurrentSelectedItem &&
+                                variants.some(
+                                  (variant) => variant.color.id === color.id
+                                )
+                                  ? (variants.find(
+                                      (variant) => variant.size.id === size.id
+                                    )?.quantity ?? 0)
+                                  : undefined
+                              }
+                            />
+                          </div>
+                        ))}
                     </div>
                   ) : (
                     <div className="flex items-center gap-4">
