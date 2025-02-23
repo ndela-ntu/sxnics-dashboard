@@ -13,7 +13,7 @@ interface EditProps {
   artists: IArtist[];
 }
 
-type FieldName = 'name' | 'artistId' | 'description' | 'tag' | 'image';
+type FieldName = "name" | "artistId" | "description" | "tag" | "image";
 
 export default function EditEpisodeForm({ episode, artists }: EditProps) {
   const initialState = { message: null, errors: {} };
@@ -51,8 +51,8 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
           placeholder="Item Name"
           required
         />
-         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('name')}
+        <div id="name-error" aria-live="polite" aria-atomic="true">
+          {renderErrors("name")}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -69,7 +69,7 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
           ))}
         </select>
         <div id="artist-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('artistId')}
+          {renderErrors("artistId")}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -84,7 +84,7 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
           maxLength={5000}
         ></textarea>
         <div id="description-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('description')}
+          {renderErrors("description")}
         </div>
       </div>
       <div className="mb-4 w-full md:w-1/2">
@@ -112,9 +112,15 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
           <option className="text-black" value="Minimal-House">
             Minimal House
           </option>
+          <option className="text-black" value="Alternative-Rnb">
+            Alternative RnB
+          </option>
+          <option className="text-black" value="Jazz">
+            Jazz
+          </option>
         </select>
         <div id="tag-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('tag')}
+          {renderErrors("tag")}
         </div>
       </div>
       <div className="mb-4 md:w-1/2">
@@ -131,7 +137,7 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
           accept="image/*"
         />
         <div id="image-error" aria-live="polite" aria-atomic="true">
-          {renderErrors('image')}
+          {renderErrors("image")}
         </div>
         <p className="mt-2 text-sm italic">
           *Leave empty to keep the current image

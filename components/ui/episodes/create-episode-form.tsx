@@ -33,6 +33,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
     createEpisode,
     initialState
   );
+  const { pending } = useFormStatus();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -75,28 +76,6 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
   
       const s3Url = `https://${process.env.NEXT_PUBLIC_S3_BUCKET_NAME}.s3.${process.env.NEXT_PUBLIC_AWS_REGION}.amazonaws.com/${fileName}`
       
-
-      /*const response = await fetch("/api/get-upload-url", {
-        method: "POST",
-        body: JSON.stringify({
-          fileName: `${uuidv4()}_${audioFile.name}`,
-          fileType: audioFile.type,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const { uploadUrl, publicUrl } = await response.json();
-
-      const upload = fetch(uploadUrl, {
-        method: "PUT",
-        body: audioFile,
-        headers: {
-          "Content-Type": audioFile.type,
-        },
-      });*/
-
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => Math.min(prev + 10, 100));
       }, 1000);
@@ -195,6 +174,12 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           <option className="text-black" value="Minimal-House">
             Minimal House
           </option>
+          <option className="text-black" value="Alternative-Rnb">
+            Alternative RnB
+          </option>
+          <option className="text-black" value="Jazz">
+            Jazz
+          </option>
         </select>
         <div id="tag-error" aria-live="polite" aria-atomic="true">
           {renderErrors("tag")}
@@ -236,20 +221,7 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
           {renderErrors("audioUrl")}
         </div>
       </div>
-      <button
-        type="submit"
-        disabled={uploading}
-        className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
-      >
-        {uploading ? (
-          <span className="flex items-center">
-            <Loader2 className="animate-spin mr-2" />
-            Uploading...
-          </span>
-        ) : (
-          "Save"
-        )}
-      </button>
+      <SubmitButton uploading={uploading}>Save</SubmitButton>
     </form>
   );
 }

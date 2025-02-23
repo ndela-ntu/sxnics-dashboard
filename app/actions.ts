@@ -1382,7 +1382,7 @@ export async function createRelease(
     } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
 
     // Calculate the deletion date (7 days from now)
-    const deleteAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const deleteAt = new Date(Date.now() + 21 * 24 * 60 * 60 * 1000);
 
     const { data, error } = await supabase
       .from("releases")
