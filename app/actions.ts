@@ -517,7 +517,9 @@ export async function editShopItem(
       });
 
       const deleteImagePromises = imagesToDeleteUrls.map(async (imageUrl) => {
-        const filePath = imageUrl.split("/object/public/")[1].split('sxnics/')[1];
+        const filePath = imageUrl
+          .split("/object/public/")[1]
+          .split("sxnics/")[1];
         const { error: imageDeleteError } = await supabase.storage
           .from("sxnics")
           .remove([filePath]);
@@ -578,7 +580,9 @@ export async function editShopItem(
       });
 
       const deleteImagePromises = imagesToDeleteUrls.map(async (imageUrl) => {
-        const filePath = imageUrl.split("/object/public/")[1].split('sxnics/')[1];
+        const filePath = imageUrl
+          .split("/object/public/")[1]
+          .split("sxnics/")[1];
         const { error: imageDeleteError } = await supabase.storage
           .from("sxnics")
           .remove([filePath]);
@@ -800,7 +804,7 @@ export async function deleteShopItem(id: number) {
     });
 
     const deleteImagePromises = imagesToDeleteUrls.map(async (imageUrl) => {
-      const filePath = imageUrl.split("/object/public/")[1].split('sxnics/')[1];
+      const filePath = imageUrl.split("/object/public/")[1].split("sxnics/")[1];
       console.log(filePath);
       const { error: imageDeleteError } = await supabase.storage
         .from("sxnics")
@@ -1792,3 +1796,35 @@ export async function deleteTopPick(id: number) {
 
   revalidatePath("/dashboard/top-picks");
 }
+export const approveOrder = async (orderId: number) => {
+  const supabase = createClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("checkout_details") // Replace with your table name
+      .update({ status: "APPROVED" }) // Update status to "APPROVED"
+      .eq("id", orderId);
+
+    if (error) throw error;
+  } catch (error) {
+    return { success: false, message: "Failed to approve order." };
+  }
+  revalidatePath("/orders");
+};
+
+// Delete Order Server Action
+export const deleteOrder = async (orderId: number) => {
+  const supabase = createClient();
+
+  try {
+    const { error } = await supabase
+      .from("checkout_details") // Replace with your table name
+      .delete()
+      .eq("id", orderId);
+
+    if (error) throw error;
+  } catch (error) {
+    return { success: false, message: "Failed to delete order." };
+  }
+  revalidatePath("/orders");
+};

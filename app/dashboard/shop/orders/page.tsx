@@ -2,6 +2,8 @@ import Orders from "@/components/ui/shop/orders";
 import { ICheckoutDetails, IOrderItems } from "@/models/checkout_details";
 import { createClient } from "@/utils/supabase/client";
 
+export const revalidate = 60;
+
 export default async function Page() {
   const supabase = createClient();
   const { data: checkoutDetails, error: checkoutDetailsError } = await supabase

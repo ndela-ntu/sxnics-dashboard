@@ -2,6 +2,7 @@ import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import { Montserrat } from "next/font/google";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { Toaster } from "sonner";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body className={`${montserrat.className} bg-black text-white`}>
         <ErrorBoundary>
           <main className="min-h-screen">{children}</main>
+          <Toaster />
         </ErrorBoundary>
       </body>
     </html>
