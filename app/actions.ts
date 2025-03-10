@@ -865,7 +865,7 @@ const EpisodeSchema = z.object({
     .refine((file: File) => {
       return !file || file.size <= 1024 * 1024 * 5;
     }, "File size must be less than 5MB"),
-  audioUrl: z.string().url({ message: "Invalid url provided" }),
+  contentUrl: z.string().url({ message: "Invalid url provided" }),
 });
 
 export type EpisodeState = {
@@ -874,7 +874,7 @@ export type EpisodeState = {
     artistId?: string[];
     description?: string[];
     image?: string[];
-    audioUrl?: string[];
+    contentUrl?: string[];
     tag?: string[];
   };
   message?: string | null;
@@ -890,9 +890,11 @@ export async function createEpisode(
     artistId: parseInt(formData.get("artistId") as string),
     description: formData.get("description"),
     image: formData.get("image"),
-    audioUrl: formData.get("audioUrl"),
+    contentUrl: formData.get("contentUrl"),
     tag: formData.get("tag"),
   });
+
+  const episodeType = formData.get("episodeType") as string;
 
   if (!validatedFields.success) {
     return {
@@ -904,14 +906,13 @@ export async function createEpisode(
   const supabase = createClient();
 
   try {
-    const { name, artistId, description, image, audioUrl, tag } =
+    const { name, artistId, description, image, tag, contentUrl } =
       validatedFields.data;
 
-    if (!(image instanceof File) /*|| !(audio instanceof File)*/) {
+    if (!(image instanceof File)) {
       throw new Error("Image and audio must be files");
     }
 
-    // 1. Upload image to Supabase Storage
     const { data: imageData, error: imageError } = await supabase.storage
       .from("sxnics")
       .upload(`episodes/${Date.now()}-${image.name}`, image);
@@ -920,43 +921,42 @@ export async function createEpisode(
       throw new Error(`Failed to upload image: ${imageError.message}`);
     }
 
-    // Get the public URL of the uploaded image
     const {
       data: { publicUrl },
     } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
 
-    /*const fileName = `${uuidv4()}_${audio.name}`
-    const uploadParams = {
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: fileName,
-      Body: Buffer.from(await audio.arrayBuffer()),
-      ContentType: audio.type,
-    }
+    if (episodeType === "audio") {
+      const { data, error } = await supabase
+        .from("episodes")
+        .insert({
+          name,
+          artistId,
+          description,
+          imageUrl: publicUrl,
+          audioUrl: contentUrl,
+          tag,
+        })
+        .select();
 
-    if (!process.env.S3_BUCKET_NAME || !process.env.AWS_REGION) {
-      throw new Error("S3 configuration is missing")
-    }
+      if (error) {
+        throw new Error(`Failed to insert episode: ${error.message}`);
+      }
+    }else {
+      const { data, error } = await supabase
+        .from("video_episodes")
+        .insert({
+          name,
+          artistId,
+          description,
+          imageUrl: publicUrl,
+          videoUrl: contentUrl,
+          tag,
+        })
+        .select();
 
-    const command = new PutObjectCommand(uploadParams)
-    await s3Client.send(command)
-
-    const s3Url = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`
-    */
-    // 2. Store item details in Supabase table
-    const { data, error } = await supabase
-      .from("episodes")
-      .insert({
-        name,
-        artistId,
-        description,
-        imageUrl: publicUrl,
-        audioUrl,
-        tag,
-      })
-      .select();
-
-    if (error) {
-      throw new Error(`Failed to insert episode: ${error.message}`);
+      if (error) {
+        throw new Error(`Failed to insert episode: ${error.message}`);
+      }
     }
   } catch (error) {
     console.error("Error in createEpisode:", error);
@@ -967,7 +967,7 @@ export async function createEpisode(
   redirect("/dashboard/episodes");
 }
 
-const EditEpisodeSchema = EpisodeSchema.omit({ audioUrl: true, image: true });
+const EditEpisodeSchema = EpisodeSchema.omit({ contentUrl: true, image: true });
 export async function editEpisode(prevState: EpisodeState, formData: FormData) {
   const validatedFields = EditEpisodeSchema.safeParse({
     id: formData.get("id"),

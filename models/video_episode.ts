@@ -1,11 +1,11 @@
-export interface IEpisode {
+export interface IVideoEpisode {
   id: number;
   created_at: string;
   name: string;
   artistId: number;
   description: string;
   imageUrl: string;
-  audioUrl: string;
+  videoUrl: string;
   tag: string;
   artists: {
     id: number;
@@ -14,5 +14,4 @@ export interface IEpisode {
     imageUrl: string;
     socialLinks: any;
   };
-  plays: number;
 }

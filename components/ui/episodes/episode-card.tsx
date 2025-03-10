@@ -1,12 +1,14 @@
 "use client";
 
-import { IEpisode } from "@/models/episode";
 import Image from "next/image";
 import { useState, useRef } from "react";
-import { Play, Pause, EllipsisVertical, Music } from "lucide-react";
+import { Play, Pause, Music } from "lucide-react";
 import EllipsisMenu from "./ellipsis-menu";
+import { IMergedEpisode } from "@/models/merged_episode";
+import { CiYoutube } from "react-icons/ci";
+import { FaYoutube } from "react-icons/fa";
 
-export default function EpisodeCard({ episode }: { episode: IEpisode }) {
+export default function EpisodeCard({ episode }: { episode: IMergedEpisode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -35,26 +37,30 @@ export default function EpisodeCard({ episode }: { episode: IEpisode }) {
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover"
             />
-            <button
-              className="flex items-center justify-center absolute inset-0 m-auto w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white"
-              onClick={togglePlayPause}
-            >
-              {isPlaying ? (
-                <Pause className="h-6 w-6" />
-              ) : (
-                <Play className="h-6 w-6" />
-              )}
-              <span className="sr-only">
-                {isPlaying ? "Pause" : "Play"} audio
-              </span>
-            </button>
+            {episode.type === "audio" && (
+              <button
+                className="flex items-center justify-center absolute inset-0 m-auto w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white"
+                onClick={togglePlayPause}
+              >
+                {isPlaying ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6" />
+                )}
+                <span className="sr-only">
+                  {isPlaying ? "Pause" : "Play"} audio
+                </span>
+              </button>
+            )}
           </div>
-          <audio
-            ref={audioRef}
-            src={episode.audioUrl}
-            className="hidden"
-            onEnded={() => setIsPlaying(false)}
-          />
+          {episode.type === "audio" && (
+            <audio
+              ref={audioRef}
+              src={episode.mediaUrl}
+              className="hidden"
+              onEnded={() => setIsPlaying(false)}
+            />
+          )}
           <div className="flex-2">
             <div className="flex flex-col ">
               <label className="overflow-ellipsis text-sm md:text-base">
@@ -70,13 +76,22 @@ export default function EpisodeCard({ episode }: { episode: IEpisode }) {
           </div>
         </div>
       </div>
-      <div className="text-sm flex space-x-1 bg-white text-black p-1 rounded-full">
-        <span>
-          <Music className="w-5 h-5" />
-        </span>
-        <span>:</span>
-        <span>{episode.plays}</span>
-      </div>
+      {episode.type === "audio" && (
+        <div className="text-sm flex space-x-1 bg-white text-black p-1 rounded-full">
+          <span>
+            <Music className="w-5 h-5" />
+          </span>
+          <span>:</span>
+          <span>{episode.plays}</span>
+        </div>
+      )}
+      {episode.type === "video" && (
+        <a href={episode.mediaUrl} target="_blank" rel="noopener noreferrer">
+          <span>
+            <FaYoutube className="h-10 w-10"/>
+          </span>
+        </a>
+      )}
       <EllipsisMenu id={episode.id} />
     </div>
   );

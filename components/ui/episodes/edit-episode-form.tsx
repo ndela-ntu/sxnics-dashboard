@@ -157,7 +157,7 @@ export default function EditEpisodeForm({ episode, artists }: EditProps) {
         </div>
       </div>
       <p className="mt-2 text-sm italic">
-        *Audio uneditable, delete episode and re-upload to make changes
+        *Audio and video uneditable, delete episode and re-upload to make changes
       </p>
       {/* <div className="mb-4 md:w-1/2">
         <label
