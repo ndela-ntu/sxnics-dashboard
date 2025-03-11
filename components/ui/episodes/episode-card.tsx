@@ -88,11 +88,11 @@ export default function EpisodeCard({ episode }: { episode: IMergedEpisode }) {
       {episode.type === "video" && (
         <a href={episode.mediaUrl} target="_blank" rel="noopener noreferrer">
           <span>
-            <FaYoutube className="h-10 w-10"/>
+            <FaYoutube className="h-10 w-10" />
           </span>
         </a>
       )}
-      <EllipsisMenu id={episode.id} />
+      <EllipsisMenu id={episode.id} type={episode.type} />
     </div>
   );
 }

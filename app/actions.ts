@@ -12,6 +12,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
+import { Truculenta } from "next/font/google";
 
 const s3Client = new S3Client({
   region: process.env.NEXT_PUBLIC_AWS_REGION!,
@@ -941,7 +942,7 @@ export async function createEpisode(
       if (error) {
         throw new Error(`Failed to insert episode: ${error.message}`);
       }
-    }else {
+    } else {
       const { data, error } = await supabase
         .from("video_episodes")
         .insert({
@@ -1045,59 +1046,91 @@ export async function editEpisode(prevState: EpisodeState, formData: FormData) {
   redirect("/dashboard/episodes");
 }
 
-export async function deleteEpisode(id: number) {
+export async function deleteEpisode(id: number, type: "audio" | "video") {
   const supabase = createClient();
 
   try {
-    const { data: episode, error: fetchError } = await supabase
-      .from("episodes")
-      .select("*")
-      .eq("id", id)
-      .single();
+    if (type === "audio") {
+      const { data: episode, error: fetchError } = await supabase
+        .from("episodes")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch item: ${fetchError.message}`);
-    }
-
-    if (episode.imageUrl) {
-      const imagePath = episode.imageUrl.split("/").pop();
-      const { error: storageError } = await supabase.storage
-        .from("sxnics")
-        .remove([`episodes/${imagePath}`]);
-
-      if (storageError) {
-        console.error(`Failed to delete image: ${storageError.message}`);
-        // Continue with item deletion even if image deletion fails
+      if (fetchError) {
+        throw new Error(`Failed to fetch item: ${fetchError.message}`);
       }
-    }
 
-    //https://sxnics-bucket.s3.eu-west-1.amazonaws.com/15388240-9a03-4496-8ce8-033d38ad8353_bread4soul_2025-01-12T00_32_49-08_00.mp3
+      if (episode.imageUrl) {
+        const imagePath = episode.imageUrl.split("/").pop();
+        const { error: storageError } = await supabase.storage
+          .from("sxnics")
+          .remove([`episodes/${imagePath}`]);
 
-    if (episode.audioUrl) {
-      const url = new URL(episode.audioUrl);
-      const bucketName = url.hostname.split(".")[0];
-      const objectKey = decodeURIComponent(url.pathname.substring(1));
-
-      const params = {
-        Bucket: bucketName,
-        Key: objectKey,
-      };
-
-      try {
-        const command = new DeleteObjectCommand(params);
-        await s3Client.send(command);
-      } catch (error) {
-        console.error("Failed to delete audio", error);
+        if (storageError) {
+          console.error(`Failed to delete image: ${storageError.message}`);
+          // Continue with item deletion even if image deletion fails
+        }
       }
-    }
 
-    const { error: deleteError } = await supabase
-      .from("episodes")
-      .delete()
-      .eq("id", id);
+      //https://sxnics-bucket.s3.eu-west-1.amazonaws.com/15388240-9a03-4496-8ce8-033d38ad8353_bread4soul_2025-01-12T00_32_49-08_00.mp3
 
-    if (deleteError) {
-      throw new Error(`Failed to delete item: ${deleteError.message}`);
+      if (episode.audioUrl) {
+        const url = new URL(episode.audioUrl);
+        const bucketName = url.hostname.split(".")[0];
+        const objectKey = decodeURIComponent(url.pathname.substring(1));
+
+        const params = {
+          Bucket: bucketName,
+          Key: objectKey,
+        };
+
+        try {
+          const command = new DeleteObjectCommand(params);
+          await s3Client.send(command);
+        } catch (error) {
+          console.error("Failed to delete audio", error);
+        }
+      }
+
+      const { error: deleteError } = await supabase
+        .from("episodes")
+        .delete()
+        .eq("id", id);
+
+      if (deleteError) {
+        throw new Error(`Failed to delete item: ${deleteError.message}`);
+      }
+    } else {
+      const { data: videoEpisode, error: fetchError } = await supabase
+        .from("video_episodes")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch item: ${fetchError.message}`);
+      }
+
+      if (videoEpisode.imageUrl) {
+        const imagePath = videoEpisode.imageUrl.split("/").pop();
+        const { error: storageError } = await supabase.storage
+          .from("sxnics")
+          .remove([`episodes/${imagePath}`]);
+
+        if (storageError) {
+          console.error(`Failed to delete image: ${storageError.message}`);
+        }
+      }
+
+      const { error: deleteError } = await supabase
+        .from("video_episodes")
+        .delete()
+        .eq("id", id);
+
+      if (deleteError) {
+        throw new Error(`Failed to delete item: ${deleteError.message}`);
+      }
     }
   } catch (error) {
     console.error("Error in editEpisode:", error);
@@ -1590,42 +1623,58 @@ export async function deleteExpiredReleases() {
   }
 }
 
-const TopPickSchema = z.object({
+const EventSchema = z.object({
   id: z.string(),
   name: z.string().min(1, { message: "Name is required" }),
-  artist: z.string().min(1, { message: "Name is required" }),
-  image: z
+  location: z.string().min(1, { message: "Location is required" }),
+  about: z.string().min(1, { message: "About is required" }),
+  ticketLink: z.string().url({ message: "Invalid url provided" }),
+  eventBy: z.string().min(1, { message: "Event by is required" }),
+  eventDate: z.coerce.date().refine((date) => date > new Date(), {
+    message: "Date must be in the future",
+  }),
+  cover: z
     .instanceof(File)
     .refine((file: File) => file.size !== 0, "Image is required")
     .refine((file: File) => {
       return !file || file.size <= 1024 * 1024 * 5;
     }, "File size must be less than 5MB"),
-  purchaseLink: z.string(),
-  tag: z.string(),
+  sxnicsEventGallery: z.array(
+    z
+      .instanceof(File)
+      .refine((file: File) => file.size !== 0, "Image is required")
+      .refine((file: File) => {
+        return !file || file.size <= 1024 * 1024 * 5;
+      }, "File size must be less than 5MB")
+  ),
 });
 
-export type TopPickState = {
+export type EventState = {
   errors?: {
     name?: string[];
-    artist?: string[];
-    image?: string[];
-    purchaseLink?: string[];
-    tag?: string[];
+    location?: string[];
+    about?: string[];
+    ticketLink?: string[];
+    eventBy?: string[];
+    eventDate?: string[];
+    cover?: string[];
   };
   message?: string | null;
 };
 
-const CreateTopPickSchema = TopPickSchema.omit({ id: true });
-export async function createTopPick(
-  prevState: TopPickState,
-  formData: FormData
-) {
-  const validatedFields = CreateTopPickSchema.safeParse({
+const CreateEventSchema = EventSchema.omit({
+  id: true,
+  sxnicsEventGallery: true,
+});
+export async function createEvent(prevState: EventState, formData: FormData) {
+  const validatedFields = CreateEventSchema.safeParse({
     name: formData.get("name"),
-    artist: formData.get("artist"),
-    image: formData.get("image"),
-    purchaseLink: formData.get("purchaseLink"),
-    tag: formData.get("tag"),
+    location: formData.get("location"),
+    about: formData.get("about"),
+    ticketLink: formData.get("ticketLink"),
+    eventBy: formData.get("eventBy"),
+    eventDate: formData.get("eventDate"),
+    cover: formData.get("cover"),
   });
 
   if (!validatedFields.success) {
@@ -1638,56 +1687,62 @@ export async function createTopPick(
   const supabase = createClient();
 
   try {
-    const { name, artist, image, purchaseLink, tag } = validatedFields.data;
+    const { name, location, about, ticketLink, eventBy, eventDate, cover } =
+      validatedFields.data;
 
-    // 1. Upload image to Supabase Storage
-    const { data: imageData, error: imageError } = await supabase.storage
+      console.log(eventDate);
+
+    /*const { data: imageData, error: imageError } = await supabase.storage
       .from("sxnics")
-      .upload(`top_picks/${Date.now()}-${image.name}`, image);
+      .upload(`events/${Date.now()}-${cover.name}`, cover);
 
     if (imageError) {
       throw new Error(`Failed to upload image: ${imageError.message}`);
     }
 
-    // Get the public URL of the uploaded image
     const {
       data: { publicUrl },
     } = supabase.storage.from("sxnics").getPublicUrl(imageData.path);
 
     const { data, error } = await supabase
-      .from("top_picks")
+      .from("events")
       .insert({
         name,
-        artist,
-        imageUrl: publicUrl,
-        purchaseLink,
-        tag,
+        location,
+        about,
+        coverUrl: publicUrl,
+        ticketLink,
+        eventBy,
+        eventDate.toISOString(),
       })
       .select();
 
     if (error) {
       throw new Error(`Failed to insert episode: ${error.message}`);
-    }
+    }*/
   } catch (error) {
     console.error("Error in createRelease:", error);
-    return <EpisodeState>{ error: {}, message: "Error from server" };
+    return <EventState>{ error: {}, message: "Error from server" };
   }
 
-  revalidatePath("/dashboard/top-picks");
-  redirect("/dashboard/top-picks");
+  revalidatePath("/dashboard/event-manager");
+  redirect("/dashboard/event-manager");
 }
 
-const EditTopPickSchema = TopPickSchema.omit({ image: true });
-export async function editTopPick(prevState: TopPickState, formData: FormData) {
-  const validatedFields = EditTopPickSchema.safeParse({
-    name: formData.get("name"),
+const EditEventSchema = EventSchema.omit({ cover: true });
+export async function editTopPick(prevState: EventState, formData: FormData) {
+  const validatedFields = EditEventSchema.safeParse({
     id: formData.get("id"),
-    artist: formData.get("artist"),
-    purchaseLink: formData.get("purchaseLink"),
-    tag: formData.get("tag"),
+    name: formData.get("name"),
+    location: formData.get("location"),
+    about: formData.get("about"),
+    ticketLink: formData.get("ticketLink"),
+    eventBy: formData.get("eventBy"),
+    eventDate: formData.get("eventDate"),
+    sxnicsEventGallery: formData.get('sxnicsEventGallery')
   });
 
-  const imageFile = formData.get("image") as File | null;
+  const imageFile = formData.get("cover") as File | null;
 
   if (!validatedFields.success) {
     return {
@@ -1699,7 +1754,8 @@ export async function editTopPick(prevState: TopPickState, formData: FormData) {
   const supabase = createClient();
 
   try {
-    const { id, name, artist, purchaseLink, tag } = validatedFields.data;
+    const { id, name, location, about, ticketLink, eventBy, eventDate, sxnicsEventGallery } =
+      validatedFields.data;
 
     let imageUrl = formData.get("currentImageUrl") as string;
 
@@ -1732,13 +1788,16 @@ export async function editTopPick(prevState: TopPickState, formData: FormData) {
 
     // 2. Store item details in Supabase table
     const { data, error } = await supabase
-      .from("top_picks")
+      .from("events")
       .update({
         name,
-        artist,
-        imageUrl,
-        purchaseLink,
-        tag,
+        location,
+        about,
+        coverUrl: imageUrl,
+        ticketLink,
+        eventBy,
+        eventDate,
+        sxnicsEventGallery,
       })
       .eq("id", parseInt(id))
       .select();
@@ -1796,6 +1855,7 @@ export async function deleteTopPick(id: number) {
 
   revalidatePath("/dashboard/top-picks");
 }
+
 export const approveOrder = async (orderId: number) => {
   const supabase = createClient();
 

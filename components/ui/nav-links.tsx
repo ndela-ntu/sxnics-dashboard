@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IoIosMusicalNote } from "react-icons/io";
 import SignOutButton from "./sign-out-button";
-import { MdOutlineNewReleases } from "react-icons/md";
+import { MdEventAvailable, MdOutlineNewReleases } from "react-icons/md";
 import { GiLargePaintBrush } from "react-icons/gi";
 import { FaHome, FaHotjar } from "react-icons/fa";
 
@@ -55,11 +55,11 @@ const links = [
   //   href: "/dashboard/monthly-picks",
   //   icon: <SlCalender />,
   // },
-  // {
-  //   name: "Event Manager",
-  //   href: "dashboard/event-manager",
-  //   icon: <MdEventAvailable />,
-  // },
+  {
+    name: "Event Manager",
+    href: "/dashboard/event-manager",
+    icon: <MdEventAvailable />,
+  },
 ];
 
 export default function NavLinks() {

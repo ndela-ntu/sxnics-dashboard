@@ -1,24 +1,24 @@
-import EditTopPickForm from "@/components/ui/top-picks/edit-top-pick-form";
+import EditEventForm from "@/components/ui/events/edit-event-form";
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
 export default async function Page({ params }: { params: { id: number } }) {
   const supabase = createClient();
-  const { data: topPick, error } = await supabase
-    .from("top_picks")
+  const { data: event, error } = await supabase
+    .from("events")
     .select("*")
     .eq("id", params.id)
     .single();
 
-  if (!topPick) {
+  if (!event) {
     notFound();
   }
 
   return (
     <div>
-      <h1>Edit Item</h1>
+      <h1>Edit Event</h1>
       <div className="border-t border-white my-4"></div>
-      <EditTopPickForm topPick={topPick} />
+      <EditEventForm event={event} />
     </div>
   );
 }

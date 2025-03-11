@@ -12,7 +12,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { deleteEpisode } from "@/app/actions";
 
-export default function EllipsisMenu({ id }: { id: number }) {
+export default function EllipsisMenu({
+  id,
+  type,
+}: {
+  id: number;
+  type: "audio" | "video";
+}) {
   const router = useRouter();
 
   const handleEdit = () => {
@@ -20,7 +26,7 @@ export default function EllipsisMenu({ id }: { id: number }) {
   };
 
   const handleDelete = async () => {
-    await deleteEpisode(id);
+    await deleteEpisode(id, type);
   };
 
   return (
