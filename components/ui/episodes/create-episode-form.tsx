@@ -109,11 +109,6 @@ export default function CreateEpisodeForm({ artists }: { artists: IArtist[] }) {
       // }else {
       //   finalFormData.append("videoUrl", contentUrl);
       // }
-
-      formData.forEach((value, key) => {
-        console.log(`${key}:`, value);
-      })
-
       dispatch(finalFormData);
     } catch (error) {
       console.error("Upload error: ", error);

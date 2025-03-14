@@ -1,29 +1,150 @@
 "use client";
 
-import { ReleaseState, createRelease } from "@/app/actions";
+import {
+  EventState,
+  ReleaseState,
+  createRelease,
+  editEvent,
+} from "@/app/actions";
 import SubmitButton from "@/components/submit-button";
 import { IEvent } from "@/models/event";
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFormState } from "react-dom";
-import ImageUploader from "./image-upload";
+import ImageUploader from "./multiple-image-upload";
+import MultipleImageUpload from "./multiple-image-upload";
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
+import { v4 as uuidv4 } from "uuid";
+import { createClient } from "@/utils/supabase/client";
+
+const s3Client = new S3Client({
+  region: process.env.NEXT_PUBLIC_AWS_REGION!,
+  credentials: {
+    accessKeyId: process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
 export default function EditEventForm({ event }: { event: IEvent }) {
-  const [dateTime, setDateTime] = useState(event.date);
+  const supabase = createClient();
+  const [dateTime, setDateTime] = useState(event.eventDate);
+  const [eventIsSxnics, setEventIsSxnics] = useState<boolean>(
+    event.eventBy === "sxnics"
+  );
+  const [uploading, setUploading] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [existingImages, setExisitingImages] = useState<string[]>(
+    event.sxnicsEventGallery?.map((imageUrl) => imageUrl) ?? []
+  );
 
   const initialState = { message: null, errors: {} };
-  const [state, dispatch] = useFormState<ReleaseState, FormData>(
-    createRelease,
+  const [state, dispatch] = useFormState<EventState, FormData>(
+    editEvent,
     initialState
   );
 
+  const deleteImage = async (imageUrl: string) => {
+    try {
+      const url = new URL(imageUrl);
+
+      // Extract the bucket name and object key correctly
+      const bucketName = process.env.NEXT_PUBLIC_S3_BUCKET_NAME; // Use the bucket name from environment variables
+      const objectKey = url.pathname.substring(1); // Remove the leading "/"
+
+      console.log("Deleting image from S3:", { bucketName, objectKey }); // Debug log
+
+      const params = {
+        Bucket: bucketName, // Use the bucket name directly
+        Key: objectKey, // The object key includes the "gallery/" prefix
+      };
+
+      const command = new DeleteObjectCommand(params);
+      await s3Client.send(command);
+      console.log("Image deleted successfully:", imageUrl); // Debug log
+
+      const newGallery = existingImages.filter((url) => url !== imageUrl);
+      const { error } = await supabase
+        .from("events")
+        .update({ sxnicsEventGallery: newGallery })
+        .eq("id", event.id);
+
+      if (error) {
+        throw Error(error.message);
+      }
+    } catch (error) {
+      console.error("Error deleting image:", error);
+      throw error; // Propagate the error
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setUploading(true);
+
+    try {
+      if (!formRef.current) return;
+
+      const formData = new FormData(formRef.current);
+      const images = selectedImages;
+
+      const uploadedUrls = [...existingImages];
+
+      for (const image of images) {
+        if (!(image instanceof File)) {
+          console.error("Invalid file object", image);
+          continue;
+        }
+
+        const fileBuffer = await image.arrayBuffer();
+
+        const fileExtension = image.name.split(".").pop();
+        const key = `gallery/${uuidv4()}.${fileExtension}`;
+
+        const params = {
+          Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME,
+          Key: key,
+          Body: Buffer.from(fileBuffer),
+          ContentType: image.type,
+        };
+
+        if (
+          !process.env.NEXT_PUBLIC_S3_BUCKET_NAME ||
+          !process.env.NEXT_PUBLIC_AWS_REGION
+        ) {
+          throw new Error("S3 configuration is missing");
+        }
+
+        const command = new PutObjectCommand(params);
+        await s3Client.send(command);
+
+        const imageUrl = `https://${process.env.NEXT_PUBLIC_S3_BUCKET_NAME}.s3.${process.env.NEXT_PUBLIC_AWS_REGION}.amazonaws.com/${key}`;
+        uploadedUrls.push(imageUrl);
+      }
+
+      formData.append("imageUrls", JSON.stringify({ uploadedUrls }));
+
+      dispatch(formData);
+    } catch (error) {
+      console.error("Upload error: ", error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <form
-      action={dispatch}
+      ref={formRef}
+      onSubmit={handleSubmit}
       className="flex flex-col items-center justify-center space-y-2 w-full"
     >
       <input type="hidden" name="id" value={event.id} />
-      <input type="hidden" name="currentImageUrl" value={event.coverUrl} />
+      <input type="hidden" name="eventBy" value={event.eventBy} />
+      <input type="hidden" name="currentCoverUrl" value={event.coverUrl} />
       <div className="mb-4 w-full md:w-1/2">
         <label>Name</label>
         <input
@@ -54,8 +175,8 @@ export default function EditEventForm({ event }: { event: IEvent }) {
           defaultValue={event.location}
         />
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.artist &&
-            state.errors.artist.map((error: string, i) => (
+          {state.errors?.location &&
+            state.errors.location.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>
@@ -94,8 +215,8 @@ export default function EditEventForm({ event }: { event: IEvent }) {
           defaultValue={event.ticketLink}
         />
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.purchaseLink &&
-            state.errors.purchaseLink.map((error: string, i) => (
+          {state.errors?.ticketLink &&
+            state.errors.ticketLink.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>
@@ -108,6 +229,7 @@ export default function EditEventForm({ event }: { event: IEvent }) {
           className="p-1.5 bg-transparent border border-white w-full"
           name="eventBy"
           defaultValue={event.eventBy}
+          disabled
         >
           <option className="text-black" value="sxnics">
             Sxnics
@@ -117,15 +239,15 @@ export default function EditEventForm({ event }: { event: IEvent }) {
           </option>
         </select>
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.type &&
-            state.errors.type.map((error: string, i) => (
+          {state.errors?.eventBy &&
+            state.errors.eventBy.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>
             ))}
         </div>
       </div>
-      <div className="mb-4 w-full md:w-1/2">
+      <div className="mb-4 w-full md:w-1/2 flex flex-col">
         <label>Event Date</label>
         <input
           type="datetime-local"
@@ -136,8 +258,8 @@ export default function EditEventForm({ event }: { event: IEvent }) {
           onChange={(e) => setDateTime(e.target.value)}
         />
         <div id="name-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.tag &&
-            state.errors.tag.map((error: string, i) => (
+          {state.errors?.eventDate &&
+            state.errors.eventDate.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>
@@ -156,11 +278,10 @@ export default function EditEventForm({ event }: { event: IEvent }) {
           name="cover"
           type="file"
           accept="image/*"
-          required
         />
         <div id="price-error" aria-live="polite" aria-atomic="true">
-          {state.errors?.image &&
-            state.errors.image.map((error: string, i) => (
+          {state.errors?.cover &&
+            state.errors.cover.map((error: string, i) => (
               <p key={i} className="text-sm text-red-500">
                 {error}
               </p>
@@ -183,8 +304,23 @@ export default function EditEventForm({ event }: { event: IEvent }) {
           />
         </div>
       </div>
-      <ImageUploader />
-      <SubmitButton>Save</SubmitButton>
+      <div className="w-full md:w-1/2">
+        <div className="border-t border-white my-4"></div>
+      </div>
+      {eventIsSxnics && (
+        <MultipleImageUpload
+          existingImages={existingImages.map((imageUrl) => ({ url: imageUrl }))}
+          onExistingImageRemove={async (_, imageUrl) => {
+            await deleteImage(imageUrl);
+          }}
+          onChange={(files, existingImages) => {
+            setSelectedImages(files);
+            setExisitingImages(existingImages.map((image) => image.url));
+          }}
+          name="images"
+        />
+      )}
+      <SubmitButton uploading={uploading}>Save</SubmitButton>
     </form>
   );
 }

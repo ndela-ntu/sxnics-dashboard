@@ -7,5 +7,5 @@ export interface IEvent {
   coverUrl: string;
   sxnicsEventGallery?: string[];
   name: string;
-  date: string;
+  eventDate: string;
 }

@@ -5,7 +5,7 @@ import { IEvent } from "@/models/event";
 import { DeleteEventButton } from "./delete-event-button";
 
 export default function EventsCard({ event }: { event: IEvent }) {
-  return (
+    return (
     <div className="border flex flex-col justify-between shadow-md overflow-hidden p-1 md:p-2.5">
       <div className="relative aspect-square">
         <Image
@@ -16,9 +16,10 @@ export default function EventsCard({ event }: { event: IEvent }) {
           className="object-cover"
         />
       </div>
-      <div className="w-full">
-        <label className="text-base italic">{event.name}</label>{" "}by{" "}
-       
+      <div className="w-full flex flex-col">
+        <label className="text-base font-semibold">{event.name}</label>
+        <span>{new Date(event.eventDate).toLocaleString()}</span>
+        <span>{event.location}</span>
       </div>
       <div className="flex items-center justify-center pt-5 space-x-5">
         <EditButton href={`/dashboard/event-manager/edit-event/${event.id}`} />

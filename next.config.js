@@ -7,6 +7,11 @@ const nextConfig = {
         hostname: "hcgqaubltkhwikijvccr.supabase.co",
         port: "",
       },
+      {
+        protocol: "https",
+        hostname: "sxnics-bucket.s3.eu-west-1.amazonaws.com",
+        port: "",
+      }
     ],
   },
 };

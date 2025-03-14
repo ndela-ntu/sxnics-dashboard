@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -1639,14 +1640,6 @@ const EventSchema = z.object({
     .refine((file: File) => {
       return !file || file.size <= 1024 * 1024 * 5;
     }, "File size must be less than 5MB"),
-  sxnicsEventGallery: z.array(
-    z
-      .instanceof(File)
-      .refine((file: File) => file.size !== 0, "Image is required")
-      .refine((file: File) => {
-        return !file || file.size <= 1024 * 1024 * 5;
-      }, "File size must be less than 5MB")
-  ),
 });
 
 export type EventState = {
@@ -1664,7 +1657,6 @@ export type EventState = {
 
 const CreateEventSchema = EventSchema.omit({
   id: true,
-  sxnicsEventGallery: true,
 });
 export async function createEvent(prevState: EventState, formData: FormData) {
   const validatedFields = CreateEventSchema.safeParse({
@@ -1690,9 +1682,7 @@ export async function createEvent(prevState: EventState, formData: FormData) {
     const { name, location, about, ticketLink, eventBy, eventDate, cover } =
       validatedFields.data;
 
-      console.log(eventDate);
-
-    /*const { data: imageData, error: imageError } = await supabase.storage
+    const { data: imageData, error: imageError } = await supabase.storage
       .from("sxnics")
       .upload(`events/${Date.now()}-${cover.name}`, cover);
 
@@ -1713,13 +1703,13 @@ export async function createEvent(prevState: EventState, formData: FormData) {
         coverUrl: publicUrl,
         ticketLink,
         eventBy,
-        eventDate.toISOString(),
+        eventDate: eventDate.toISOString(),
       })
       .select();
 
     if (error) {
       throw new Error(`Failed to insert episode: ${error.message}`);
-    }*/
+    }
   } catch (error) {
     console.error("Error in createRelease:", error);
     return <EventState>{ error: {}, message: "Error from server" };
@@ -1729,8 +1719,10 @@ export async function createEvent(prevState: EventState, formData: FormData) {
   redirect("/dashboard/event-manager");
 }
 
-const EditEventSchema = EventSchema.omit({ cover: true });
-export async function editTopPick(prevState: EventState, formData: FormData) {
+const EditEventSchema = EventSchema.omit({
+  cover: true,
+});
+export async function editEvent(prevState: EventState, formData: FormData) {
   const validatedFields = EditEventSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -1739,10 +1731,7 @@ export async function editTopPick(prevState: EventState, formData: FormData) {
     ticketLink: formData.get("ticketLink"),
     eventBy: formData.get("eventBy"),
     eventDate: formData.get("eventDate"),
-    sxnicsEventGallery: formData.get('sxnicsEventGallery')
   });
-
-  const imageFile = formData.get("cover") as File | null;
 
   if (!validatedFields.success) {
     return {
@@ -1754,10 +1743,15 @@ export async function editTopPick(prevState: EventState, formData: FormData) {
   const supabase = createClient();
 
   try {
-    const { id, name, location, about, ticketLink, eventBy, eventDate, sxnicsEventGallery } =
+    const { id, name, location, about, ticketLink, eventBy, eventDate } =
       validatedFields.data;
 
-    let imageUrl = formData.get("currentImageUrl") as string;
+    const imageFile = formData.get("cover") as File | null;
+    const sxnicsImageUrls = JSON.parse(formData.get("imageUrls") as string) as {
+      uploadedUrls: string[];
+    };
+
+    let imageUrl = formData.get("currentCoverUrl") as string;
 
     if (imageFile && imageFile.size > 0) {
       if (imageUrl) {
@@ -1765,7 +1759,7 @@ export async function editTopPick(prevState: EventState, formData: FormData) {
         if (oldImagePath) {
           await supabase.storage
             .from("sxnics")
-            .remove([`top_picks/${oldImagePath}`]);
+            .remove([`events/${oldImagePath}`]);
         } else {
           throw new Error("Unable to resolve oldImagePath");
         }
@@ -1773,7 +1767,7 @@ export async function editTopPick(prevState: EventState, formData: FormData) {
 
       const { data: imageData, error: imageError } = await supabase.storage
         .from("sxnics")
-        .upload(`top_picks/${Date.now()}-${imageFile.name}`, imageFile);
+        .upload(`events/${Date.now()}-${imageFile.name}`, imageFile);
 
       if (imageError) {
         throw new Error(`Failed to upload image: ${imageError.message}`);
@@ -1796,8 +1790,8 @@ export async function editTopPick(prevState: EventState, formData: FormData) {
         coverUrl: imageUrl,
         ticketLink,
         eventBy,
-        eventDate,
-        sxnicsEventGallery,
+        eventDate: eventDate.toISOString(),
+        sxnicsEventGallery: sxnicsImageUrls.uploadedUrls,
       })
       .eq("id", parseInt(id))
       .select();
@@ -1810,16 +1804,16 @@ export async function editTopPick(prevState: EventState, formData: FormData) {
     return { error };
   }
 
-  revalidatePath("/dashboard/top-picks");
-  redirect("/dashboard/top-picks");
+  revalidatePath("/dashboard/event-manager");
+  redirect("/dashboard/event-manager");
 }
 
-export async function deleteTopPick(id: number) {
+export async function deleteEvent(id: number) {
   const supabase = createClient();
 
   try {
-    const { data: topPick, error: fetchError } = await supabase
-      .from("top_picks")
+    const { data: event, error: fetchError } = await supabase
+      .from("events")
       .select("*")
       .eq("id", id)
       .single();
@@ -1828,11 +1822,11 @@ export async function deleteTopPick(id: number) {
       throw new Error(`Failed to fetch item: ${fetchError.message}`);
     }
 
-    if (topPick.imageUrl) {
-      const imagePath = topPick.imageUrl.split("/").pop();
+    if (event.coverUrl) {
+      const imagePath = event.coverUrl.split("/").pop();
       const { error: storageError } = await supabase.storage
         .from("sxnics")
-        .remove([`top_picks/${imagePath}`]);
+        .remove([`events/${imagePath}`]);
 
       if (storageError) {
         console.error(`Failed to delete image: ${storageError.message}`);
@@ -1840,8 +1834,30 @@ export async function deleteTopPick(id: number) {
       }
     }
 
+    const sxnicsEventGallery: string[] | null = event.sxnicsEventGallery;
+
+    if (sxnicsEventGallery) {
+      const objectKeys = sxnicsEventGallery.map((url) => {
+        return url.replace(
+          "https://sxnics-bucket.s3.eu-west-1.amazonaws.com/",
+          ""
+        );
+      });
+
+      const deleteParams = {
+        Bucket: "sxnics-bucket",
+        Delete: {
+          Objects: objectKeys.map((key) => ({ Key: key })),
+          Quiet: false,
+        },
+      };
+
+      const command = new DeleteObjectsCommand(deleteParams);
+      await s3Client.send(command);
+    }
+
     const { error: deleteError } = await supabase
-      .from("top_picks")
+      .from("events")
       .delete()
       .eq("id", id);
 
@@ -1853,7 +1869,7 @@ export async function deleteTopPick(id: number) {
     return { error };
   }
 
-  revalidatePath("/dashboard/top-picks");
+  revalidatePath("/dashboard/event-manager");
 }
 
 export const approveOrder = async (orderId: number) => {
