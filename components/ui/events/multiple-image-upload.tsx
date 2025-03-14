@@ -198,7 +198,7 @@ export default function MultipleImageUpload({
       <div className="mb-4">
         <label
           htmlFor={`${name}-upload`}
-          className="block mb-2 text-sm font-medium text-gray-700"
+          className="block mb-2 text-white"
         >
           Upload Images
           {maxFiles !== null && (
@@ -212,7 +212,7 @@ export default function MultipleImageUpload({
           <button
             type="button"
             onClick={handleSelectClick}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-blue-300 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-black bg-white disabled:bg-gray-500 disabled:cursor-not-allowed"
             disabled={isMaxFilesReached}
           >
             Select Images
@@ -222,13 +222,13 @@ export default function MultipleImageUpload({
             <button
               type="button"
               onClick={clearNewImages}
-              className="px-4 py-2 text-sm font-medium text-red-600 border border-red-600 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="px-4 py-2 text-red-600 border border-red-600"
             >
               Clear New Images
             </button>
           )}
 
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-white">
             {totalImageCount} {totalImageCount === 1 ? "image" : "images"} total
           </span>
         </div>
@@ -274,7 +274,7 @@ export default function MultipleImageUpload({
       {/* Preview of existing images */}
       {existingImageList.length > 0 && (
         <div className="mt-4">
-          <h3 className="mb-2 text-sm font-medium text-gray-700">
+          <h3 className="mb-2 text-white">
             Existing Images
           </h3>
           <ul
@@ -284,7 +284,7 @@ export default function MultipleImageUpload({
             {existingImageList.map((image, index) => (
               <li
                 key={`existing-${index}`}
-                className="relative border rounded-md overflow-hidden"
+                className="relative border overflow-hidden"
               >
                 <div className="relative w-full pt-[100%]">
                   <Image
@@ -303,7 +303,7 @@ export default function MultipleImageUpload({
                 >
                   ×
                 </button>
-                <div className="p-1 text-xs text-gray-500 truncate">
+                <div className="p-1 text-xs text-white truncate">
                   {image.name || getFilenameFromUrl(image.url)}
                 </div>
               </li>
@@ -315,7 +315,7 @@ export default function MultipleImageUpload({
       {/* Preview of newly selected images */}
       {previewUrls.length > 0 && (
         <div className="mt-4">
-          <h3 className="mb-2 text-sm font-medium text-gray-700">
+          <h3 className="mb-2 text-white">
             Newly Selected Images
           </h3>
           <ul
@@ -325,7 +325,7 @@ export default function MultipleImageUpload({
             {previewUrls.map((url, index) => (
               <li
                 key={`new-${index}`}
-                className="relative border rounded-md overflow-hidden"
+                className="relative border overflow-hidden"
               >
                 <div className="relative w-full pt-[100%]">
                   <Image
@@ -344,7 +344,7 @@ export default function MultipleImageUpload({
                 >
                   ×
                 </button>
-                <div className="p-1 text-xs text-gray-500 truncate">
+                <div className="p-1 text-xs text-white truncate">
                   {selectedImages[index]?.name || "Image file"}
                 </div>
               </li>

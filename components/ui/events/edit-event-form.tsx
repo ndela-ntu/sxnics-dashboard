@@ -307,18 +307,23 @@ export default function EditEventForm({ event }: { event: IEvent }) {
       <div className="w-full md:w-1/2">
         <div className="border-t border-white my-4"></div>
       </div>
+
       {eventIsSxnics && (
-        <MultipleImageUpload
-          existingImages={existingImages.map((imageUrl) => ({ url: imageUrl }))}
-          onExistingImageRemove={async (_, imageUrl) => {
-            await deleteImage(imageUrl);
-          }}
-          onChange={(files, existingImages) => {
-            setSelectedImages(files);
-            setExisitingImages(existingImages.map((image) => image.url));
-          }}
-          name="images"
-        />
+        <div className="mb-4 w-full md:w-1/2">
+          <MultipleImageUpload
+            existingImages={existingImages.map((imageUrl) => ({
+              url: imageUrl,
+            }))}
+            onExistingImageRemove={async (_, imageUrl) => {
+              await deleteImage(imageUrl);
+            }}
+            onChange={(files, existingImages) => {
+              setSelectedImages(files);
+              setExisitingImages(existingImages.map((image) => image.url));
+            }}
+            name="images"
+          />
+        </div>
       )}
       <SubmitButton uploading={uploading}>Save</SubmitButton>
     </form>
