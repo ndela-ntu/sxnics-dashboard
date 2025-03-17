@@ -1573,6 +1573,56 @@ export async function deleteRelease(id: number) {
   revalidatePath("/dashboard/release-radar");
 }
 
+export async function deletePastEvents() {
+  const supabase = createClient();
+
+  try {
+    const { data: pastEvents, error: fetchError } = await supabase
+      .from("events")
+      .select("*")
+      .eq("eventBy", "other")
+      .lte("eventDate", new Date().toISOString());
+
+    if (fetchError) {
+      throw new Error(
+        `Failed to fetch expired releases: ${fetchError.message}`
+      );
+    }
+
+    for (const event of pastEvents) {
+      // Delete the associated image
+      if (event.coverUrl) {
+        const imagePath = event.imageUrl.split("/").pop();
+        const { error: storageError } = await supabase.storage
+          .from("sxnics")
+          .remove([`events/${imagePath}`]);
+
+        if (storageError) {
+          console.error(
+            `Failed to delete image for release ${event.id}: ${storageError.message}`
+          );
+          // Continue with release deletion even if image deletion fails
+        }
+      }
+
+      const { error: deleteError } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", event.id);
+
+      if (deleteError) {
+        console.error(
+          `Failed to delete event ${event.id}: ${deleteError.message}`
+        );
+      } else {
+        console.log(`Successfully deleted expired release ${event.id}`);
+      }
+    }
+  } catch (error) {
+    console.error("Error in deletePastEvent:", error);
+  }
+}
+
 export async function deleteExpiredReleases() {
   const supabase = createClient();
 
